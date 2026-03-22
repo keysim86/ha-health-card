@@ -591,21 +591,15 @@ class HealthCard extends HTMLElement {
 
   async _fetchStatsByEntity(entityId, startDate, endDate, period) {
     if (!entityId) return {};
-    return new Promise(function(resolve) {
-      var conn  = this._hass.connection;
-      var unsub = conn.subscribeMessage(
-        function(msg) { unsub(); resolve(msg); },
-        {
-          type:          'recorder/statistics_during_period',
-          start_time:    startDate.toISOString(),
-          end_time:      endDate.toISOString(),
-          statistic_ids: [entityId],
-          period:        period,
-          units:         {},
-          types:         ['mean', 'state'],
-        }
-      );
-    }.bind(this));
+    return this._hass.callWS({
+      type:          'recorder/statistics_during_period',
+      start_time:    startDate.toISOString(),
+      end_time:      endDate.toISOString(),
+      statistic_ids: [entityId],
+      period:        period,
+      units:         {},
+      types:         ['mean', 'state'],
+    });
   }
 
   _drawBpChart(labels, sysDaily, diaDaily, pulDaily) {
