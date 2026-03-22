@@ -304,6 +304,12 @@ class HealthCard extends HTMLElement {
       </style>
       <ha-card>
         <div id="wrap">
+          <div class="nav" id="health-nav">
+            <button class="nav-btn active" data-page="weight">&#9878; Waga</button>
+            <button class="nav-btn" data-page="pressure">&#128138; Ci&#347;nienie</button>
+            <button class="nav-btn" data-page="activity">&#127939; Aktywno&#347;&#263;</button>
+            <button class="nav-btn" data-page="settings">&#9881; Konfiguracja</button>
+          </div>
           <div id="content"><div class="loading">Ładowanie danych...</div></div>
           <div id="page-pressure" class="nav-page" style="display:none"></div>
           <div id="page-activity" class="nav-page" style="display:none"><div class="empty-page"><div class="icon">&#127939;</div><div class="title">Aktywno&#347;&#263;</div><div>W budowie &mdash; wkr&oacute;tce</div></div></div>
@@ -377,12 +383,6 @@ class HealthCard extends HTMLElement {
     }).join('');
 
     this.shadowRoot.getElementById('content').innerHTML =
-      '<div class="nav" id="health-nav">' +
-        '<button class="nav-btn active" data-page="weight">&#9878; Waga</button>' +
-        '<button class="nav-btn" data-page="pressure">&#128138; Ci&#347;nienie</button>' +
-        '<button class="nav-btn" data-page="activity">&#127939; Aktywno&#347;&#263;</button>' +
-        '<button class="nav-btn" data-page="settings">&#9881; Konfiguracja</button>' +
-      '</div>' +
       '<div id="page-weight" class="nav-page active">' +
       alertHtml +
       '<div class="metric-grid">' +
