@@ -29,7 +29,11 @@ class HealthCard extends HTMLElement {
   }
 
   _ts(s) {
-    return typeof s.start === 'number' ? s.start * 1000 : new Date(s.start).getTime();
+    if (typeof s.start === 'number') {
+      // HA zwraca start w sekundach jeśli < 1e12, w milisekundach jeśli >= 1e12
+      return s.start < 1e12 ? s.start * 1000 : s.start;
+    }
+    return new Date(s.start).getTime();
   }
 
   _day(ts) {
@@ -124,7 +128,7 @@ class HealthCard extends HTMLElement {
   }
 
   async _fetchStats(startDate, endDate, period) {
-    return this._hass.connection.sendMessagePromise({
+    return this._hass.callWS({
       type:          'recorder/statistics_during_period',
       start_time:    startDate.toISOString(),
       end_time:      endDate.toISOString(),
@@ -342,8 +346,8 @@ class HealthCard extends HTMLElement {
         '<div class="metric"><div class="metric-label">Srednie tempo</div><div class="metric-value good">&minus;' + weeklyAvg.toFixed(2) + ' kg</div><div class="metric-sub">na tydzien</div></div>' +
       '</div>' +
       '<div class="bmi-row">' +
-        '<div class="bmi-card"><div class="bmi-label">BMI teraz (wzrost ' + h + ' cm)</div><div class="bmi-value" style="color:' + bmiCat.color + '">' + bmiNow + '</div><div class="bmi-cat" style="color:' + bmiCat.color + '">' + bmiCat.label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + bmiPct + '%"></div></div></div>' +
         '<div class="bmi-card"><div class="bmi-label">BMI na starcie</div><div class="bmi-value" style="color:' + this._bmiCat(bmiStart).color + '">' + bmiStart + '</div><div class="bmi-cat" style="color:' + this._bmiCat(bmiStart).color + '">' + this._bmiCat(bmiStart).label + '</div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:8px">Zmiana BMI: <b>' + (Math.round((bmiNow-bmiStart)*10)/10) + '</b></div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:2px">Norma (BMI 25) = ' + normKg.toFixed(2) + ' kg</div></div>' +
+        '<div class="bmi-card"><div class="bmi-label">BMI teraz (wzrost ' + h + ' cm)</div><div class="bmi-value" style="color:' + bmiCat.color + '">' + bmiNow + '</div><div class="bmi-cat" style="color:' + bmiCat.color + '">' + bmiCat.label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + bmiPct + '%"></div></div></div>' +
       '</div>' +
       '<h3>Postep do celow</h3>' +
       '<div class="prog-grid">' + goalsHtml + '</div>' +
@@ -359,7 +363,9 @@ class HealthCard extends HTMLElement {
         '<div class="tab active" id="range-all" onclick="this.getRootNode().host._switchRange(\'all\')">Od poczatku</div>' +
         '<div class="tab" id="range-6m" onclick="this.getRootNode().host._switchRange(\'6m\')">6 mies.</div>' +
         '<div class="tab" id="range-3m" onclick="this.getRootNode().host._switchRange(\'3m\')">3 mies.</div>' +
-        '<div class="tab" id="range-1m" onclick="this.getRootNode().host._switchRange(\'1m\')">1 mies.</div>' +
+        '<div class="tab" id="range-30d" onclick="this.getRootNode().host._switchRange(\'30d\')">30 dni</div>' +
+        '<div class="tab" id="range-14d" onclick="this.getRootNode().host._switchRange(\'14d\')">14 dni</div>' +
+        '<div class="tab" id="range-7d" onclick="this.getRootNode().host._switchRange(\'7d\')">7 dni</div>' +
       '</div>' +
       '<div class="legend"><span><span class="ldot" style="background:#378ADD"></span>Dzienna waga</span><span><span class="ldot" style="background:#1D9E75"></span>Trend 7 dni</span>' + legendGoals + '</div>' +
       '<div class="chart-wrap"><canvas id="wChart"></canvas></div>';
@@ -378,8 +384,9 @@ class HealthCard extends HTMLElement {
   _switchRange(range) {
     var r          = this.shadowRoot;
     var self       = this;
-    ['all','6m','3m','1m'].forEach(function(x) {
-      r.getElementById('range-' + x).classList.toggle('active', x === range);
+    ['all','6m','3m','30d','14d','7d'].forEach(function(x) {
+      var el = r.getElementById('range-' + x);
+      if (el) el.classList.toggle('active', x === range);
     });
     var allLabels  = this._daily.map(function(d){ return d[0]; });
     var allWeights = this._daily.map(function(d){ return d[1]; });
@@ -389,9 +396,11 @@ class HealthCard extends HTMLElement {
     } else {
       var now = new Date();
       var cut = new Date(now);
-      if (range === '1m') cut.setMonth(now.getMonth() - 1);
-      if (range === '3m') cut.setMonth(now.getMonth() - 3);
-      if (range === '6m') cut.setMonth(now.getMonth() - 6);
+      if (range === '7d')  cut.setDate(now.getDate() - 7);
+      if (range === '14d') cut.setDate(now.getDate() - 14);
+      if (range === '30d') cut.setDate(now.getDate() - 30);
+      if (range === '3m')  cut.setMonth(now.getMonth() - 3);
+      if (range === '6m')  cut.setMonth(now.getMonth() - 6);
       var cutStr = cut.toLocaleDateString('sv-SE');
       var idx    = allLabels.findIndex(function(l){ return l >= cutStr; });
       var from   = idx >= 0 ? idx : 0;
