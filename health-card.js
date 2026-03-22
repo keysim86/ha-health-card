@@ -305,6 +305,9 @@ class HealthCard extends HTMLElement {
       <ha-card>
         <div id="wrap">
           <div id="content"><div class="loading">Ładowanie danych...</div></div>
+          <div id="page-pressure" class="nav-page" style="display:none"></div>
+          <div id="page-activity" class="nav-page" style="display:none"><div class="empty-page"><div class="icon">&#127939;</div><div class="title">Aktywno&#347;&#263;</div><div>W budowie &mdash; wkr&oacute;tce</div></div></div>
+          <div id="page-settings" class="nav-page" style="display:none"><div class="empty-page"><div class="icon">&#9881;</div><div class="title">Konfiguracja</div><div>W budowie &mdash; wkr&oacute;tce</div></div></div>
         </div>
       </ha-card>
     `;
