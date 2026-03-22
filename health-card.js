@@ -77,9 +77,9 @@ class HealthCard extends HTMLElement {
     if (bmi < 18.5) return { label: 'Niedowaga',    color: '#3B8BD4' };
     if (bmi < 25.0) return { label: 'Norma',         color: '#1D9E75' };
     if (bmi < 30.0) return { label: 'Nadwaga',       color: '#BA7517' };
-    if (bmi < 35.0) return { label: 'Otylosc I',    color: '#E24B4A' };
-    if (bmi < 40.0) return { label: 'Otylosc II',   color: '#A32D2D' };
-    return           { label: 'Otylosc III', color: '#701515' };
+    if (bmi < 35.0) return { label: 'Otyłość I°',    color: '#E24B4A' };
+    if (bmi < 40.0) return { label: 'Otyłość I°I',   color: '#A32D2D' };
+    return           { label: 'Otyłość I°II', color: '#701515' };
   }
 
   _calcMonthly(daily) {
@@ -200,7 +200,7 @@ class HealthCard extends HTMLElement {
       this._updateUI(daily);
 
     } catch(err) {
-      content.innerHTML = '<div style="color:#E24B4A;padding:20px;text-align:center">Blad: ' + err.message + '</div>';
+      content.innerHTML = '<div style="color:#E24B4A;padding:20px;text-align:center">Błąd: ' + err.message + '</div>';
     }
   }
 
@@ -269,7 +269,7 @@ class HealthCard extends HTMLElement {
       </style>
       <ha-card>
         <div id="wrap">
-          <div id="content"><div class="loading">Ladowanie danych...</div></div>
+          <div id="content"><div class="loading">Ładowanie danych...</div></div>
         </div>
       </ha-card>
     `;
@@ -341,27 +341,27 @@ class HealthCard extends HTMLElement {
     this.shadowRoot.getElementById('content').innerHTML =
       alertHtml +
       '<div class="metric-grid">' +
-        '<div class="metric"><div class="metric-label">Start (' + this.config.start_date + ')</div><div class="metric-value">' + this.config.start_weight.toFixed(2) + ' kg</div><div class="metric-sub">punkt wyjscia</div></div>' +
+        '<div class="metric"><div class="metric-label">Start (' + this.config.start_date + ')</div><div class="metric-value">' + this.config.start_weight.toFixed(2) + ' kg</div><div class="metric-sub">punkt wyjścia</div></div>' +
         '<div class="metric"><div class="metric-label">Aktualnie (' + currentDate + ')</div><div class="metric-value good">' + currentW.toFixed(2) + ' kg</div><div class="metric-sub">ostatni odczyt</div></div>' +
-        '<div class="metric"><div class="metric-label">Laczna utrata</div><div class="metric-value good">&minus;' + totalLoss.toFixed(2) + ' kg</div><div class="metric-sub">przez ' + days + ' dni</div></div>' +
-        '<div class="metric"><div class="metric-label">Srednie tempo</div><div class="metric-value good">&minus;' + weeklyAvg.toFixed(2) + ' kg</div><div class="metric-sub">na tydzien</div></div>' +
+        '<div class="metric"><div class="metric-label">Łączna utrata</div><div class="metric-value good">&minus;' + totalLoss.toFixed(2) + ' kg</div><div class="metric-sub">przez ' + days + ' dni</div></div>' +
+        '<div class="metric"><div class="metric-label">Średnie tempo</div><div class="metric-value good">&minus;' + weeklyAvg.toFixed(2) + ' kg</div><div class="metric-sub">na tydzień</div></div>' +
       '</div>' +
       '<div class="bmi-row">' +
         '<div class="bmi-card"><div class="bmi-label">BMI na starcie</div><div class="bmi-value" style="color:' + this._bmiCat(bmiStart).color + '">' + bmiStart + '</div><div class="bmi-cat" style="color:' + this._bmiCat(bmiStart).color + '">' + this._bmiCat(bmiStart).label + '</div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:8px">Zmiana BMI: <b>' + (Math.round((bmiNow-bmiStart)*10)/10) + '</b></div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:2px">Norma (BMI 25) = ' + normKg.toFixed(2) + ' kg</div></div>' +
         '<div class="bmi-card"><div class="bmi-label">BMI teraz (wzrost ' + h + ' cm)</div><div class="bmi-value" style="color:' + bmiCat.color + '">' + bmiNow + '</div><div class="bmi-cat" style="color:' + bmiCat.color + '">' + bmiCat.label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + bmiPct + '%"></div></div></div>' +
       '</div>' +
-      '<h3>&#127937; Postep do celow</h3>' +
+      '<h3>&#127937; Postęp do celów</h3>' +
       '<div class="prog-grid">' + goalsHtml + '</div>' +
       '<h3>&#128197; Bilanse</h3>' +
       '<div class="tabs">' +
-        '<div class="tab active" id="tab-monthly" onclick="this.getRootNode().host._switchTab(\'monthly\')">Miesieczne</div>' +
+        '<div class="tab active" id="tab-monthly" onclick="this.getRootNode().host._switchTab(\'monthly\')">Miesięczne</div>' +
         '<div class="tab" id="tab-weekly" onclick="this.getRootNode().host._switchTab(\'weekly\')">Tygodniowe</div>' +
       '</div>' +
-      '<div id="bal-monthly" class="balance-grid">' + balRows(monthly, 'month', function(m){ return self._monthName(m); }) + '<div class="note">* miesiac niepelny &middot; pierwsza waga miesiaca &rarr; pierwsza waga kolejnego</div></div>' +
-      '<div id="bal-weekly" class="balance-grid" style="display:none">' + balRows(weekly, 'week', function(w){ return w.slice(5); }) + '<div class="note">* tydzien niepelny &middot; ostatnie 16 tygodni</div></div>' +
+      '<div id="bal-monthly" class="balance-grid">' + balRows(monthly, 'month', function(m){ return self._monthName(m); }) + '<div class="note">* miesiąc niepełny &middot; pierwsza waga miesiąca &rarr; pierwsza waga kolejnego</div></div>' +
+      '<div id="bal-weekly" class="balance-grid" style="display:none">' + balRows(weekly, 'week', function(w){ return w.slice(5); }) + '<div class="note">* tydzień niepełny &middot; ostatnie 16 tygodni</div></div>' +
       '<h3>&#128200; Historia wagi</h3>' +
       '<div class="tabs">' +
-        '<div class="tab active" id="range-all" onclick="this.getRootNode().host._switchRange(\'all\')">Od poczatku</div>' +
+        '<div class="tab active" id="range-all" onclick="this.getRootNode().host._switchRange(\'all\')">Od początku</div>' +
         '<div class="tab" id="range-6m" onclick="this.getRootNode().host._switchRange(\'6m\')">6 mies.</div>' +
         '<div class="tab" id="range-3m" onclick="this.getRootNode().host._switchRange(\'3m\')">3 mies.</div>' +
         '<div class="tab" id="range-30d" onclick="this.getRootNode().host._switchRange(\'30d\')">30 dni</div>' +

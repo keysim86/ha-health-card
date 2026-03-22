@@ -1,7 +1,7 @@
 # Health Card
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/keysim86/ha-health-card/main/icons/health-card.svg" alt="Health Card" width="80" height="80"/>
+  <img src="https://raw.githubusercontent.com/keysim86/ha-health-card/main/icons/health-card.png" alt="Health Card" width="80" height="80"/>
 </p>
 
 <p align="center">
