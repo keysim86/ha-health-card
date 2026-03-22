@@ -1,5 +1,9 @@
 # Health Card
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/keysim86/ha-health-card/main/icons/health-card.png" alt="Health Card" width="100"/>
+</p>
+
 [![Release](https://img.shields.io/github/v/release/keysim86/ha-health-card?style=flat-square)](https://github.com/keysim86/ha-health-card/releases/latest)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://github.com/keysim86/ha-health-card)
 [![HA](https://img.shields.io/badge/Home%20Assistant-2023.0%2B-blue?style=flat-square)](https://www.home-assistant.io/)
