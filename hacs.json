@@ -3,5 +3,6 @@
   "description": "Karta zdrowia z wagą, BMI, bilansami miesięcznymi/tygodniowymi i wykresem historii",
   "render_readme": true,
   "filename": "health-card.js",
-  "homeassistant": "2026.3.0"
+  "homeassistant": "2023.0.0",
+  "icon": "icons/health-card.svg"
 }

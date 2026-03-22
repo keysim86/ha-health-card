@@ -239,7 +239,8 @@ class HealthCard extends HTMLElement {
         .alert { border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
         .alert.warn { background:#FAEEDA; color:#854F0B; border:0.5px solid #BA7517; }
         .alert.ok   { background:#E1F5EE; color:#0F6E56; border:0.5px solid #1D9E75; }
-        h3 { font-size: 12px; font-weight: 500; color: var(--secondary-text-color); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        h3 { font-size: 12px; font-weight: 500; color: var(--secondary-text-color); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; }
+        h3 svg { width: 14px; height: 14px; flex-shrink: 0; }
         .tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
         .tab { padding: 5px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; background: var(--secondary-background-color); color: var(--secondary-text-color); border: 0.5px solid transparent; user-select: none; }
         .tab.active { background: var(--primary-color, #1D9E75); color: #fff; }
@@ -350,16 +351,16 @@ class HealthCard extends HTMLElement {
         '<div class="bmi-card"><div class="bmi-label">BMI na starcie</div><div class="bmi-value" style="color:' + this._bmiCat(bmiStart).color + '">' + bmiStart + '</div><div class="bmi-cat" style="color:' + this._bmiCat(bmiStart).color + '">' + this._bmiCat(bmiStart).label + '</div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:8px">Zmiana BMI: <b>' + (Math.round((bmiNow-bmiStart)*10)/10) + '</b></div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:2px">Norma (BMI 25) = ' + normKg.toFixed(2) + ' kg</div></div>' +
         '<div class="bmi-card"><div class="bmi-label">BMI teraz (wzrost ' + h + ' cm)</div><div class="bmi-value" style="color:' + bmiCat.color + '">' + bmiNow + '</div><div class="bmi-cat" style="color:' + bmiCat.color + '">' + bmiCat.label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + bmiPct + '%"></div></div></div>' +
       '</div>' +
-      '<h3>Postep do celow</h3>' +
+      '<h3>' + '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm0-12.5c-2.49 0-4.5 2.01-4.5 4.5S9.51 16.5 12 16.5s4.5-2.01 4.5-4.5S14.49 7.5 12 7.5zm0 5.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>' + 'Postep do celow</h3>' +
       '<div class="prog-grid">' + goalsHtml + '</div>' +
-      '<h3>Bilanse</h3>' +
+      '<h3>' + '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>' + 'Bilanse</h3>' +
       '<div class="tabs">' +
         '<div class="tab active" id="tab-monthly" onclick="this.getRootNode().host._switchTab(\'monthly\')">Miesieczne</div>' +
         '<div class="tab" id="tab-weekly" onclick="this.getRootNode().host._switchTab(\'weekly\')">Tygodniowe</div>' +
       '</div>' +
       '<div id="bal-monthly" class="balance-grid">' + balRows(monthly, 'month', function(m){ return self._monthName(m); }) + '<div class="note">* miesiac niepelny &middot; pierwsza waga miesiaca &rarr; pierwsza waga kolejnego</div></div>' +
       '<div id="bal-weekly" class="balance-grid" style="display:none">' + balRows(weekly, 'week', function(w){ return w.slice(5); }) + '<div class="note">* tydzien niepelny &middot; ostatnie 16 tygodni</div></div>' +
-      '<h3>Historia wagi</h3>' +
+      '<h3>' + '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>' + 'Historia wagi</h3>' +
       '<div class="tabs">' +
         '<div class="tab active" id="range-all" onclick="this.getRootNode().host._switchRange(\'all\')">Od poczatku</div>' +
         '<div class="tab" id="range-6m" onclick="this.getRootNode().host._switchRange(\'6m\')">6 mies.</div>' +
