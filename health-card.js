@@ -438,17 +438,20 @@ class HealthCard extends HTMLElement {
     }
     var r = this.shadowRoot;
     var pages = ['weight', 'pressure', 'activity', 'settings'];
-    // Waga używa #content, reszta używa page-*
+    // Pokaż/ukryj odpowiednie strony
     var content = r.getElementById('content');
     if (content) content.style.display = page === 'weight' ? '' : 'none';
-    pages.forEach(function(p) {
-      if (p === 'weight') return;
+    ['pressure', 'activity', 'settings'].forEach(function(p) {
       var el = r.getElementById('page-' + p);
-      if (el) el.style.display = p === page ? '' : 'none';
+      if (el) el.style.display = p === page ? 'block' : 'none';
     });
-    r.querySelectorAll('.nav-btn').forEach(function(btn, i) {
-      btn.classList.toggle('active', i === pages.indexOf(page));
-    });
+    // Zaktualizuj aktywny przycisk nawigacji
+    var nav = r.getElementById('health-nav');
+    if (nav) {
+      nav.querySelectorAll('.nav-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-page') === page);
+      });
+    }
   }
 
   async _loadPressureData() {
