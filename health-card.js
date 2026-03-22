@@ -99,7 +99,7 @@ class HealthCard extends HTMLElement {
       var endW   = idx + 1 < months.length ? byMonth.get(months[idx+1]).first : byMonth.get(m).last;
       var partial = idx + 1 >= months.length;
       return { month: m, startW: startW, endW: endW, diff: Math.round((endW - startW)*100)/100, partial: partial };
-    });
+    }).reverse();
   }
 
   _calcWeekly(daily) {
@@ -124,7 +124,7 @@ class HealthCard extends HTMLElement {
       var endW   = idx + 1 < weeks.length ? byWeek.get(weeks[idx+1]).first : byWeek.get(w).last;
       var partial = idx + 1 >= weeks.length;
       return { week: w, label: w.slice(5), startW: startW, endW: endW, diff: Math.round((endW - startW)*100)/100, partial: partial };
-    });
+    }).reverse();
   }
 
   async _fetchStats(startDate, endDate, period) {
@@ -178,13 +178,14 @@ class HealthCard extends HTMLElement {
         if (!map.has(day)) map.set(day, Math.round(val * 100) / 100);
       }
 
+      // Short-term: bierzemy OSTATNIĄ wartość każdego dnia (najświeższa)
       var stMap = new Map();
       for (var j = 0; j < stStats.length; j++) {
         var ss   = stStats[j];
         var sval = ss.mean != null ? ss.mean : ss.state;
         if (sval == null || isNaN(sval)) continue;
         var sday = this._day(this._ts(ss));
-        if (!stMap.has(sday)) stMap.set(sday, Math.round(sval * 100) / 100);
+        stMap.set(sday, Math.round(sval * 100) / 100);
       }
       stMap.forEach(function(v, k) { map.set(k, v); });
 
