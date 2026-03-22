@@ -23,6 +23,7 @@ class HealthCard extends HTMLElement {
       report_name:      config.report_name      || 'Imię Nazwisko',
       report_birthdate: config.report_birthdate || '',
       report_device:    config.report_device    || 'Ciśnieniomierz',
+
     };
   }
 
@@ -37,6 +38,7 @@ class HealthCard extends HTMLElement {
 
   _ts(s) {
     if (typeof s.start === 'number') {
+      // HA zwraca start w sekundach jeśli < 1e12, w milisekundach jeśli >= 1e12
       return s.start < 1e12 ? s.start * 1000 : s.start;
     }
     return new Date(s.start).getTime();
@@ -135,7 +137,7 @@ class HealthCard extends HTMLElement {
 
   async _fetchStats(startDate, endDate, period) {
     return this._hass.connection.sendMessagePromise({
-      type:           'recorder/statistics_during_period',
+      type:          'recorder/statistics_during_period',
       start_time:    startDate.toISOString(),
       end_time:      endDate.toISOString(),
       statistic_ids: [this.config.entity_id],
@@ -168,6 +170,8 @@ class HealthCard extends HTMLElement {
         content.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--primary-text-color)">'
           + '<b>Brak danych w statystykach</b><br><br>'
           + 'Encja: <code>' + this.config.entity_id + '</code><br>'
+          + 'Klucze LT: ' + JSON.stringify(Object.keys(ltRaw)) + '<br>'
+          + 'Klucze ST: ' + JSON.stringify(Object.keys(stRaw))
           + '</div>';
         return;
       }
@@ -182,6 +186,7 @@ class HealthCard extends HTMLElement {
         if (!map.has(day)) map.set(day, Math.round(val * 100) / 100);
       }
 
+      // Short-term: bierzemy OSTATNIĄ wartość każdego dnia (najświeższa)
       var stMap = new Map();
       for (var j = 0; j < stStats.length; j++) {
         var ss   = stStats[j];
@@ -413,6 +418,7 @@ class HealthCard extends HTMLElement {
       '</div>';
 
     this._drawChart(labels, weights, trend);
+    // Podepnij event listener do nawigacji
     var nav = this.shadowRoot.getElementById('health-nav');
     if (nav) {
       var self = this;
@@ -421,6 +427,7 @@ class HealthCard extends HTMLElement {
         if (btn) self._switchPage(btn.getAttribute('data-page'));
       });
     }
+
   }
 
   _switchPage(page) {
@@ -430,12 +437,15 @@ class HealthCard extends HTMLElement {
       this._loadPressureData();
     }
     var r = this.shadowRoot;
+    var pages = ['weight', 'pressure', 'activity', 'settings'];
+    // Pokaż/ukryj odpowiednie strony
     var content = r.getElementById('content');
     if (content) content.style.display = page === 'weight' ? '' : 'none';
     ['pressure', 'activity', 'settings'].forEach(function(p) {
       var el = r.getElementById('page-' + p);
       if (el) el.style.display = p === page ? 'block' : 'none';
     });
+    // Zaktualizuj aktywny przycisk nawigacji
     var nav = r.getElementById('health-nav');
     if (nav) {
       nav.querySelectorAll('.nav-btn').forEach(function(btn) {
@@ -469,6 +479,7 @@ class HealthCard extends HTMLElement {
         return;
       }
 
+      // Pobierz aktualne wartości z hass.states
       var sysState = this._hass.states[this.config.bp_systolic];
       var diaState = this._hass.states[this.config.bp_diastolic];
       var pulState = this._hass.states[this.config.bp_pulse];
@@ -479,6 +490,7 @@ class HealthCard extends HTMLElement {
       var pulNow = pulState ? Math.round(parseFloat(pulState.state)) : '—';
       var catNow = catState ? catState.state : null;
 
+      // Statystyki z ostatnich 30 dni
       var cutDate = new Date(now); cutDate.setDate(cutDate.getDate() - 30);
       var cutStr  = cutDate.toLocaleDateString('sv-SE');
 
@@ -498,6 +510,7 @@ class HealthCard extends HTMLElement {
       var mn  = function(arr) { return arr.length ? Math.round(Math.min.apply(null,arr)) : '—'; };
       var mx  = function(arr) { return arr.length ? Math.round(Math.max.apply(null,arr)) : '—'; };
 
+      // Alert na podstawie kategorii lub wartości
       var alertHtml = '';
       var alertClass = 'ok';
       var alertText  = 'Ci&#347;nienie w normie';
@@ -512,20 +525,23 @@ class HealthCard extends HTMLElement {
         }
       } else if (typeof sysNow === 'number' && typeof diaNow === 'number') {
         if (sysNow >= 140 || diaNow >= 90) {
-          alertClass = 'danger'; alertText = '&#9888; Nadci&#347;nienie';
+          alertClass = 'danger'; alertText = '&#9888; Nadci&#347;nienie — skonsultuj si&#281; z lekarzem';
         } else if (sysNow >= 130 || diaNow >= 80) {
-          alertClass = 'warn'; alertText = '&#9888; Podwy&#380;szone';
+          alertClass = 'warn'; alertText = '&#9888; Podwy&#380;szone ci&#347;nienie';
         }
       }
       alertHtml = '<div class="bp-alert ' + alertClass + '">' + alertText + '</div>';
 
+      // Kolory wartości
       var sysColor = (typeof sysNow === 'number' && sysNow >= 140) ? '#E24B4A' : (sysNow >= 130 ? '#BA7517' : '#1D9E75');
       var diaColor = (typeof diaNow === 'number' && diaNow >= 90)  ? '#E24B4A' : (diaNow >= 80  ? '#BA7517' : '#1D9E75');
       var pulColor = (typeof pulNow === 'number' && (pulNow > 100 || pulNow < 50)) ? '#BA7517' : '#3B8BD4';
 
+      // Dane wykresu — dzienne średnie
       var sysDaily = self._statToDaily(sysStats);
       var diaDaily = self._statToDaily(diaStats);
       var pulDaily = self._statToDaily(pulStats);
+
       var labels = sysDaily.map(function(d){ return d[0]; });
 
       page.innerHTML =
@@ -548,6 +564,7 @@ class HealthCard extends HTMLElement {
         '<div class="chart-wrap"><canvas id="bpChart"></canvas></div>';
 
       self._drawBpChart(labels, sysDaily, diaDaily, pulDaily);
+      // Podepnij przycisk PDF
       var pdfBtn = self.shadowRoot.getElementById('btn-gen-pdf');
       if (pdfBtn) pdfBtn.addEventListener('click', function() { self._generateBpPdf(); });
 
@@ -556,115 +573,8 @@ class HealthCard extends HTMLElement {
     }
   }
 
-  // --- TUTAJ ZMIENIONA FUNKCJA GENEROWANIA PDF (POBIERA REALNĄ HISTORIĘ) ---
-  async _generateBpPdf() {
-    var self    = this;
-    var select  = this.shadowRoot.getElementById('report-period-select');
-    var days    = select ? parseInt(select.value) : 30;
-    var now     = new Date();
-    var start   = new Date(now);
-    start.setDate(start.getDate() - days);
-    var startStr = start.toLocaleDateString('pl-PL');
-    var endStr   = now.toLocaleDateString('pl-PL');
-
-    // Używamy history/period zamiast statistics, aby dostać surowe punkty pomiarowe
-    const fetchHist = async (ent) => await this._hass.callApi('GET', `history/period/${start.toISOString()}?filter_entity_id=${ent}&end_time=${now.toISOString()}`);
-
-    try {
-      const results = await Promise.all([
-        fetchHist(this.config.bp_systolic),
-        fetchHist(this.config.bp_diastolic),
-        fetchHist(this.config.bp_pulse)
-      ]);
-
-      var tsMap = new Map();
-      const process = (data, key) => {
-        if (!data[0]) return;
-        data[0].forEach(s => {
-          const d = new Date(s.last_changed);
-          const ts = d.setSeconds(d.getSeconds(), 0); // Używamy pełnej precyzji do grupowania
-          if (!tsMap.has(ts)) tsMap.set(ts, { ts, sys:null, dia:null, pul:null });
-          tsMap.get(ts)[key] = Math.round(parseFloat(s.state));
-        });
-      };
-
-      process(results[0], 'sys');
-      process(results[1], 'dia');
-      process(results[2], 'pul');
-
-      var measurements = Array.from(tsMap.values())
-        .filter(m => m.sys && m.dia)
-        .sort((a,b) => a.ts - b.ts);
-
-      var catLabel = function(s, d) {
-        if (s < 120 && d < 80)  return 'Optymalne';
-        if (s < 130 && d < 85)  return 'Prawidłowe';
-        if (s < 140 && d < 90)  return 'Wysokie prawidłowe';
-        if (s < 160 && d < 100) return 'Nadciśnienie I°';
-        return 'Nadciśnienie';
-      };
-
-      var timeOfDay = function(ts) {
-        var h = new Date(ts).getHours();
-        if (h >= 5  && h < 12) return 'Rano';
-        if (h >= 12 && h < 17) return 'Południe';
-        if (h >= 17 && h < 21) return 'Wieczór';
-        return 'Noc';
-      };
-
-      var rows = measurements.map(m => {
-        var d = new Date(m.ts);
-        return `<tr>
-          <td>${d.toLocaleDateString('pl-PL')}</td>
-          <td>${d.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})}</td>
-          <td>${timeOfDay(m.ts)}</td>
-          <td style="font-weight:700; color:${m.sys>=140?'#c0392b':'#27ae60'}">${m.sys}</td>
-          <td style="font-weight:700; color:${m.dia>=90?'#c0392b':'#27ae60'}">${m.dia}</td>
-          <td>${m.pul || '—'}</td>
-          <td>${catLabel(m.sys, m.dia)}</td>
-        </tr>`;
-      }).reverse().join('');
-
-      var sysList = measurements.map(m => m.sys);
-      var diaList = measurements.map(m => m.dia);
-      var pulList = measurements.filter(m => m.pul).map(m => m.pul);
-      var avg = (a) => a.length ? (a.reduce((x,y)=>x+y,0)/a.length).toFixed(1) : '—';
-
-      var html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-        body{font-family:Arial,sans-serif; font-size:13px; padding:20px; color:#333;}
-        h1{text-align:center; text-transform:uppercase; font-size:16px; margin-bottom:20px;}
-        .info{margin-bottom:20px;}
-        table{width:100%; border-collapse:collapse; margin-bottom:20px;}
-        th{background:#1a5276; color:white; padding:8px; font-size:12px;}
-        td{padding:8px; border-bottom:1px solid #eee; text-align:center;}
-        tr:nth-child(even){background:#f9f9f9;}
-        .stat-table{border:2px solid #1a5276; margin-top:20px;}
-        .footer{font-size:10px; color:#888; text-align:center; margin-top:30px;}
-      </style></head><body>
-        <h1>RAPORT POMIARÓW CIŚNIENIA TĘTNICZEGO</h1>
-        <div class="info">
-          <b>Pacjent:</b> ${this.config.report_name} | <b>Okres:</b> ${startStr} - ${endStr}<br>
-          <b>Urządzenie:</b> ${this.config.report_device}
-        </div>
-        <table><thead><tr><th>Data</th><th>Czas</th><th>Pora</th><th>SYS</th><th>DIA</th><th>Puls</th><th>Kategoria</th></tr></thead>
-        <tbody>${rows}</tbody></table>
-        <table class="stat-table">
-          <thead><tr><th>Parametr</th><th>Średnia</th><th>Min</th><th>Max</th><th>Ocena</th></tr></thead>
-          <tbody>
-            <tr><td>Skurczowe</td><td>${avg(sysList)}</td><td>${Math.min(...sysList)}</td><td>${Math.max(...sysList)}</td><td rowspan="2">${catLabel(parseFloat(avg(sysList)), parseFloat(avg(diaList)))}</td></tr>
-            <tr><td>Rozkurczowe</td><td>${avg(diaList)}</td><td>${Math.min(...diaList)}</td><td>${Math.max(...diaList)}</td></tr>
-          </tbody>
-        </table>
-        <div class="footer">Wygenerowano: ${now.toLocaleString('pl-PL')} | Liczba pomiarów: ${measurements.length}</div>
-      </body></html>`;
-
-      var win = window.open('','_blank');
-      win.document.write(html); win.document.close();
-      win.onload = function() { win.print(); };
-    } catch(err) { console.error(err); }
-  }
-
   _statToDaily(stats) {
+    var self = this;
     var map  = new Map();
     for (var i = 0; i < stats.length; i++) {
       var s   = stats[i];
@@ -674,8 +584,8 @@ class HealthCard extends HTMLElement {
       if (!map.has(day)) map.set(day, []);
       map.get(day).push(parseFloat(val));
     }
-    return Array.from(map.entries()).sort((a,b) => a[0].localeCompare(b[0])).map(e => {
-      var avg = e[1].reduce((a,b) => a+b, 0) / e[1].length;
+    return Array.from(map.entries()).sort(function(a,b){ return a[0].localeCompare(b[0]); }).map(function(e){
+      var avg = e[1].reduce(function(a,b){return a+b;},0) / e[1].length;
       return [e[0], Math.round(avg * 10) / 10];
     });
   }
@@ -683,11 +593,12 @@ class HealthCard extends HTMLElement {
   async _fetchStatsByEntity(entityId, startDate, endDate, period) {
     if (!entityId) return {};
     return this._hass.connection.sendMessagePromise({
-      type:           'recorder/statistics_during_period',
+      type:          'recorder/statistics_during_period',
       start_time:    startDate.toISOString(),
       end_time:      endDate.toISOString(),
       statistic_ids: [entityId],
       period:        period,
+      units:         {},
       types:         ['mean', 'state'],
     });
   }
@@ -701,40 +612,214 @@ class HealthCard extends HTMLElement {
         data: {
           labels: labels,
           datasets: [
-            { type: 'line', label: 'Skurczowe', data: sysDaily.map(d => d[1]), borderColor: '#E24B4A', tension: 0.3, fill: false },
-            { type: 'line', label: 'Rozkurczowe', data: diaDaily.map(d => d[1]), borderColor: '#3B8BD4', tension: 0.3, fill: false },
-            { type: 'line', label: 'Puls', data: pulDaily.map(d => d[1]), borderColor: '#1D9E75', tension: 0.3, fill: false }
+            {
+              type: 'line', label: 'Skurczowe',
+              data: sysDaily.map(function(d){ return d[1]; }),
+              borderColor: '#E24B4A', backgroundColor: 'rgba(226,75,74,0.08)',
+              borderWidth: 2, pointRadius: 2, tension: 0.3, fill: false, order: 1
+            },
+            {
+              type: 'line', label: 'Rozkurczowe',
+              data: diaDaily.map(function(d){ return d[1]; }),
+              borderColor: '#3B8BD4', backgroundColor: 'rgba(59,139,212,0.08)',
+              borderWidth: 2, pointRadius: 2, tension: 0.3, fill: false, order: 2
+            },
+            {
+              type: 'line', label: 'Puls',
+              data: pulDaily.map(function(d){ return d[1]; }),
+              borderColor: '#1D9E75', borderWidth: 1.5, pointRadius: 2,
+              tension: 0.3, fill: false, order: 3
+            },
+            {
+              type: 'line', label: 'Norma sys 120',
+              data: labels.map(function(){ return 120; }),
+              borderColor: '#E24B4A', borderWidth: 1, borderDash: [4,3],
+              pointRadius: 0, fill: false, order: 4
+            },
+            {
+              type: 'line', label: 'Norma dia 80',
+              data: labels.map(function(){ return 80; }),
+              borderColor: '#3B8BD4', borderWidth: 1, borderDash: [4,3],
+              pointRadius: 0, fill: false, order: 5
+            }
           ]
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 40, max: 200 } } }
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: function(ctx) { return ' ' + ctx.parsed.y + (ctx.datasetIndex < 2 ? ' mmHg' : ctx.datasetIndex === 2 ? ' bpm' : ''); } } }
+          },
+          scales: {
+            x: { ticks: { maxTicksLimit: 8, color: '#73726c', font: { size: 11 }, maxRotation: 30 }, grid: { display: false } },
+            y: { min: 40, max: 200, ticks: { color: '#73726c', font: { size: 11 }, stepSize: 20 }, grid: { color: 'rgba(128,128,128,0.1)' } }
+          }
+        }
       });
     };
     if (window.Chart) draw(); else setTimeout(draw, 500);
   }
 
-  _drawChart(labels, weights, trend) {
-    var self = this;
-    if (window.Chart) { this._initChart(labels, weights, trend); }
-    else {
-      var s  = document.createElement('script');
-      s.src  = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
-      s.onload = function() { self._initChart(labels, weights, trend); };
-      document.head.appendChild(s);
-    }
-  }
+  _generateBpPdf() {
+    var self    = this;
+    var select  = this.shadowRoot.getElementById('report-period-select');
+    var days    = select ? parseInt(select.value) : 30;
+    var now     = new Date();
+    var start   = new Date(now);
+    start.setDate(start.getDate() - days);
+    var startStr = start.toLocaleDateString('pl-PL');
+    var endStr   = now.toLocaleDateString('pl-PL');
 
-  _initChart(labels, weights, trend) {
-    var canvas = this.shadowRoot.getElementById('wChart');
-    if (!canvas) return;
-    this._chart = new window.Chart(canvas, {
-      data: {
-        labels: labels,
-        datasets: [
-          { type: 'line', label: 'Waga', data: weights, borderColor: '#378ADD', fill: true, backgroundColor: 'rgba(55,138,221,0.08)', tension: 0.3 },
-          { type: 'line', label: 'Trend', data: trend, borderColor: '#1D9E75', borderWidth: 2.5, pointRadius: 0, tension: 0.4 }
-        ]
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    // Pobierz dane z ostatnich X dni
+    var sysState = this._hass.states[this.config.bp_systolic];
+    var diaState = this._hass.states[this.config.bp_diastolic];
+    var pulState = this._hass.states[this.config.bp_pulse];
+    var catState = this.config.bp_category ? this._hass.states[this.config.bp_category] : null;
+
+    // Zbierz pomiary z historii — użyj zapamiętanych danych
+    var self = this;
+    Promise.all([
+      this._fetchStatsByEntity(this.config.bp_systolic,  start, now, '5minute'),
+      this._fetchStatsByEntity(this.config.bp_diastolic, start, now, '5minute'),
+      this._fetchStatsByEntity(this.config.bp_pulse,     start, now, '5minute'),
+    ]).then(function(results) {
+      var sysRaw = results[0][self.config.bp_systolic]  || [];
+      var diaRaw = results[1][self.config.bp_diastolic] || [];
+      var pulRaw = results[2][self.config.bp_pulse]     || [];
+
+      // Zbierz unikalne timestampy i dopasuj wartości
+      var tsMap = new Map();
+      sysRaw.forEach(function(s) {
+        var ts  = self._ts(s);
+        var day = self._day(ts);
+        var val = s.mean != null ? s.mean : s.state;
+        if (!isNaN(val)) {
+          if (!tsMap.has(ts)) tsMap.set(ts, { ts: ts, day: day, sys: null, dia: null, pul: null });
+          tsMap.get(ts).sys = Math.round(val);
+        }
+      });
+      diaRaw.forEach(function(s) {
+        var ts  = self._ts(s);
+        var val = s.mean != null ? s.mean : s.state;
+        if (!isNaN(val) && tsMap.has(ts)) tsMap.get(ts).dia = Math.round(val);
+      });
+      pulRaw.forEach(function(s) {
+        var ts  = self._ts(s);
+        var val = s.mean != null ? s.mean : s.state;
+        if (!isNaN(val) && tsMap.has(ts)) tsMap.get(ts).pul = Math.round(val);
+      });
+
+      var measurements = Array.from(tsMap.values())
+        .filter(function(m){ return m.sys && m.dia; })
+        .sort(function(a,b){ return a.ts - b.ts; });
+
+      // Statystyki
+      var sysList = measurements.map(function(m){ return m.sys; });
+      var diaList = measurements.map(function(m){ return m.dia; });
+      var pulList = measurements.filter(function(m){ return m.pul; }).map(function(m){ return m.pul; });
+      var avg = function(a){ return a.length ? Math.round(a.reduce(function(x,y){return x+y;},0)/a.length*10)/10 : '—'; };
+      var mn  = function(a){ return a.length ? Math.min.apply(null,a) : '—'; };
+      var mx  = function(a){ return a.length ? Math.max.apply(null,a) : '—'; };
+
+      // Kategoria wg WHO
+      var catLabel = function(s, d) {
+        if (s < 120 && d < 80)  return 'Optymalne';
+        if (s < 130 && d < 85)  return 'Prawid&#322;owe';
+        if (s < 140 && d < 90)  return 'Wysokie prawid&#322;owe';
+        if (s < 160 && d < 100) return 'Nadci&#347;nienie I&#176;';
+        if (s < 180 && d < 110) return 'Nadci&#347;nienie II&#176;';
+        return 'Nadci&#347;nienie III&#176;';
+      };
+
+      // Pora dnia
+      var timeOfDay = function(ts) {
+        var h = new Date(ts).getHours();
+        if (h >= 5  && h < 12) return 'Rano';
+        if (h >= 12 && h < 17) return 'Po&#322;udnie';
+        if (h >= 17 && h < 21) return 'Wieczór';
+        return 'Noc';
+      };
+
+      // Wiek z daty urodzenia
+      var ageStr = '';
+      if (self.config.report_birthdate) {
+        var bd   = new Date(self.config.report_birthdate);
+        var age  = Math.floor((now - bd) / (365.25 * 24 * 3600 * 1000));
+        var bdPl = bd.toLocaleDateString('pl-PL');
+        ageStr   = bdPl + ' (wiek: ' + age + ' lat)';
+      }
+
+      // Oceń ogólną klasyfikację
+      var sysAvg = avg(sysList);
+      var diaAvg = avg(diaList);
+      var pulAvg = avg(pulList);
+      var overallCat = (typeof sysAvg === 'number' && typeof diaAvg === 'number') ? catLabel(sysAvg, diaAvg) : '—';
+      var overallPul = (typeof pulAvg === 'number') ? (pulAvg >= 60 && pulAvg <= 100 ? 'Prawid&#322;owy' : 'Nieprawid&#322;owy') : '—';
+
+      // Wygeneruj wiersze tabeli
+      var rows = measurements.map(function(m) {
+        var d   = new Date(m.ts);
+        var cat = catLabel(m.sys, m.dia || 0);
+        return '<tr>'
+          + '<td>' + d.toLocaleDateString('pl-PL') + '</td>'
+          + '<td>' + d.toLocaleTimeString('pl-PL', {hour:'2-digit',minute:'2-digit'}) + '</td>'
+          + '<td>' + timeOfDay(m.ts) + '</td>'
+          + '<td style="color:' + (m.sys >= 140 ? '#c0392b' : m.sys >= 130 ? '#e67e22' : '#27ae60') + ';font-weight:500">' + m.sys + '</td>'
+          + '<td style="color:' + (m.dia >= 90  ? '#c0392b' : m.dia >= 80  ? '#e67e22' : '#27ae60') + ';font-weight:500">' + (m.dia || '—') + '</td>'
+          + '<td>' + (m.pul || '—') + '</td>'
+          + '<td>' + cat + '</td>'
+          + '</tr>';
+      }).join('');
+
+      // HTML raportu
+      var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8">'
+        + '<title>Raport ci&#347;nienia — ' + self.config.report_name + '</title>'
+        + '<style>'
+        + 'body{font-family:Arial,sans-serif;font-size:13px;color:#333;margin:0;padding:20px;}'
+        + 'h1{text-align:center;font-size:16px;text-transform:uppercase;letter-spacing:1px;margin-bottom:20px;}'
+        + '.info-table{width:100%;border-collapse:collapse;margin-bottom:24px;}'
+        + '.info-table td{padding:4px 8px;}'
+        + '.info-table td:first-child{font-weight:700;width:160px;}'
+        + 'h2{font-size:13px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #1a5276;color:#1a5276;padding-bottom:4px;margin:20px 0 10px;}'
+        + 'table{width:100%;border-collapse:collapse;margin-bottom:20px;}'
+        + 'thead tr{background:#1a5276;color:white;}'
+        + 'thead th{padding:8px 6px;text-align:center;font-size:12px;}'
+        + 'tbody tr:nth-child(even){background:#f2f9ff;}'
+        + 'tbody td{padding:6px 8px;text-align:center;border-bottom:1px solid #dce9f5;}'
+        + '.stat-table thead tr{background:#2e86c1;}'
+        + '.footer{font-size:10px;color:#888;text-align:center;margin-top:30px;border-top:1px solid #eee;padding-top:10px;}'
+        + '@media print{body{padding:10px;}}'
+        + '</style></head><body>'
+        + '<h1>Raport pomiar&oacute;w ci&scaron;nienia t&ecirc;tniczego</h1>'
+        + '<table class="info-table"><tbody>'
+        + '<tr><td>Imi&#281; i nazwisko:</td><td>' + self.config.report_name + '</td></tr>'
+        + (ageStr ? '<tr><td>Data urodzenia:</td><td>' + ageStr + '</td></tr>' : '')
+        + '<tr><td>Wzrost / Waga:</td><td>' + self._heightCm() + ' cm / ' + (self._hass.states[self.config.entity_id] ? parseFloat(self._hass.states[self.config.entity_id].state).toFixed(1) : '—') + ' kg</td></tr>'
+        + '<tr><td>Okres pomiar&oacute;w:</td><td>' + startStr + ' &mdash; ' + endStr + '</td></tr>'
+        + '<tr><td>Urz&#261;dzenie:</td><td>' + self.config.report_device + '</td></tr>'
+        + '</tbody></table>'
+        + '<h2>Wyniki pomiar&oacute;w</h2>'
+        + '<table><thead><tr>'
+        + '<th>Data</th><th>Czas</th><th>Pora</th>'
+        + '<th>Skurczowe<br>(mmHg)</th><th>Rozkurczowe<br>(mmHg)</th>'
+        + '<th>Puls<br>(bpm)</th><th>Kategoria</th>'
+        + '</tr></thead><tbody>' + rows + '</tbody></table>'
+        + '<h2>Podsumowanie statystyczne</h2>'
+        + '<table class="stat-table"><thead><tr><th>Parametr</th><th>&#346;rednia</th><th>Min</th><th>Max</th><th>Ocena</th></tr></thead>'
+        + '<tbody>'
+        + '<tr><td>Skurczowe (mmHg)</td><td>' + avg(sysList) + '</td><td>' + mn(sysList) + '</td><td>' + mx(sysList) + '</td><td rowspan="2">' + overallCat + '</td></tr>'
+        + '<tr><td>Rozkurczowe (mmHg)</td><td>' + avg(diaList) + '</td><td>' + mn(diaList) + '</td><td>' + mx(diaList) + '</td></tr>'
+        + '<tr><td>Puls (bpm)</td><td>' + avg(pulList) + '</td><td>' + mn(pulList) + '</td><td>' + mx(pulList) + '</td><td>' + overallPul + '</td></tr>'
+        + '</tbody></table>'
+        + '<div class="footer">Data wygenerowania: ' + now.toLocaleDateString('pl-PL') + ' ' + now.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})
+        + ' | Dane pobrane z Home Assistant | Liczba pomiar&oacute;w: ' + measurements.length + '</div>'
+        + '</body></html>';
+
+      // Otwórz w nowym oknie i wywołaj drukowanie
+      var win = window.open('', '_blank');
+      win.document.write(html);
+      win.document.close();
+      win.onload = function() { win.print(); };
     });
   }
 
@@ -747,9 +832,107 @@ class HealthCard extends HTMLElement {
   }
 
   _switchRange(range) {
-    var r = this.shadowRoot;
-    ['all','6m','3m','30d','14d','7d'].forEach(x => r.getElementById('range-'+x)?.classList.toggle('active', x===range));
-    this._loadData();
+    var r          = this.shadowRoot;
+    var self       = this;
+    ['all','6m','3m','30d','14d','7d'].forEach(function(x) {
+      var el = r.getElementById('range-' + x);
+      if (el) el.classList.toggle('active', x === range);
+    });
+    var allLabels  = this._daily.map(function(d){ return d[0]; });
+    var allWeights = this._daily.map(function(d){ return d[1]; });
+    var labels, weights;
+    if (range === 'all') {
+      labels = allLabels; weights = allWeights;
+    } else {
+      var now = new Date();
+      var cut = new Date(now);
+      if (range === '7d')  cut.setDate(now.getDate() - 7);
+      if (range === '14d') cut.setDate(now.getDate() - 14);
+      if (range === '30d') cut.setDate(now.getDate() - 30);
+      if (range === '3m')  cut.setMonth(now.getMonth() - 3);
+      if (range === '6m')  cut.setMonth(now.getMonth() - 6);
+      var cutStr = cut.toLocaleDateString('sv-SE');
+      var idx    = allLabels.findIndex(function(l){ return l >= cutStr; });
+      var from   = idx >= 0 ? idx : 0;
+      labels  = allLabels.slice(from);
+      weights = allWeights.slice(from);
+    }
+    if (this._chart) { this._chart.destroy(); this._chart = null; }
+    this._initChart(labels, weights, this._rollingAvg(weights));
+  }
+
+  _drawChart(labels, weights, trend) {
+    var self = this;
+    if (window.Chart) {
+      this._initChart(labels, weights, trend);
+    } else {
+      var s  = document.createElement('script');
+      s.src  = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+      s.onload = function() { self._initChart(labels, weights, trend); };
+      document.head.appendChild(s);
+    }
+  }
+
+  _initChart(labels, weights, trend) {
+    var canvas = this.shadowRoot.getElementById('wChart');
+    if (!canvas) return;
+    var goalDatasets = this.config.goals.map(function(g, i) {
+      return {
+        type: 'line',
+        label: g.weight + ' kg',
+        data: labels.map(function(){ return g.weight; }),
+        borderColor: g.color || '#888',
+        borderWidth: 1.2,
+        borderDash: [4, 3],
+        pointRadius: 0,
+        fill: false,
+        order: 5 + i
+      };
+    });
+    this._chart = new window.Chart(canvas, {
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            type: 'line', label: 'Waga', data: weights,
+            borderColor: '#378ADD', backgroundColor: 'rgba(55,138,221,0.08)',
+            borderWidth: 1.5, pointRadius: 2, pointHoverRadius: 5,
+            tension: 0.3, fill: true, order: 3
+          },
+          {
+            type: 'line', label: 'Trend', data: trend,
+            borderColor: '#1D9E75', borderWidth: 2.5,
+            pointRadius: 0, tension: 0.4, fill: false, order: 2
+          }
+        ].concat(goalDatasets)
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                return ctx.datasetIndex >= 2 ? null : ' ' + ctx.parsed.y.toFixed(2) + ' kg';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { maxTicksLimit: 8, color: '#73726c', font: { size: 11 }, maxRotation: 30 },
+            grid: { display: false }
+          },
+          y: {
+            min: 85,
+            max: Math.ceil(this.config.start_weight + 2),
+            ticks: { callback: function(v){ return v + ' kg'; }, color: '#73726c', font: { size: 11 }, stepSize: 5 },
+            grid: { color: 'rgba(128,128,128,0.1)' }
+          }
+        }
+      }
+    });
   }
 
   getCardSize() { return 12; }
