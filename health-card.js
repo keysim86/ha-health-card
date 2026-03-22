@@ -124,21 +124,14 @@ class HealthCard extends HTMLElement {
   }
 
   async _fetchStats(startDate, endDate, period) {
-    var self = this;
-    return new Promise(function(resolve) {
-      var conn  = self._hass.connection;
-      var unsub = conn.subscribeMessage(
-        function(msg) { unsub(); resolve(msg); },
-        {
-          type:          'recorder/statistics_during_period',
-          start_time:    startDate.toISOString(),
-          end_time:      endDate.toISOString(),
-          statistic_ids: [self.config.entity_id],
-          period:        period,
-          units:         { mass: 'kg' },
-          types:         ['mean', 'state'],
-        }
-      );
+    return this._hass.connection.sendMessagePromise({
+      type:          'recorder/statistics_during_period',
+      start_time:    startDate.toISOString(),
+      end_time:      endDate.toISOString(),
+      statistic_ids: [this.config.entity_id],
+      period:        period,
+      units:         { mass: 'kg' },
+      types:         ['mean', 'state'],
     });
   }
 
