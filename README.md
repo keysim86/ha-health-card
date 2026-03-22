@@ -1,12 +1,10 @@
 # Health Card
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/keysim86/ha-health-card/main/icons/health-card.png" alt="Health Card" width="80" height="80"/>
-</p>
+[![Release](https://img.shields.io/github/v/release/keysim86/ha-health-card?style=flat-square)](https://github.com/keysim86/ha-health-card/releases/latest)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://github.com/keysim86/ha-health-card)
+[![HA](https://img.shields.io/badge/Home%20Assistant-2023.0%2B-blue?style=flat-square)](https://www.home-assistant.io/)
 
-<p align="center">
-  Karta Lovelace do śledzenia wagi ciała dla Home Assistant.
-</p>
+> Karta Lovelace do śledzenia wagi ciała — BMI, bilanse miesięczne/tygodniowe, wykres historii i postęp do celów.
 
 ---
 
@@ -22,12 +20,15 @@
 - Alert gdy cel krwiodawstwa jest w ciągu 7 dni
 - W pełni konfigurowalny przez YAML — jeden plik JS dla wielu użytkowników
 
+---
+
 ## Instalacja przez HACS
 
-1. HACS → Interfejs użytkownika → (3 kropki) → Repozytoria niestandardowe
+1. HACS → Interfejs użytkownika → (3 kropki) → **Repozytoria niestandardowe**
 2. URL: `https://github.com/keysim86/ha-health-card`
 3. Kategoria: `Lovelace`
-4. Kliknij Dodaj → znajdź "Health Card" → Pobierz
+4. Kliknij **Dodaj**
+5. Znajdź **Health Card** na liście pobranych → **Pobierz**
 
 ## Instalacja ręczna
 
@@ -37,19 +38,21 @@ Skopiuj `health-card.js` do `/config/www/` i dodaj zasób w HA:
 - URL: `/local/health-card.js`
 - Typ: `JavaScript module`
 
+---
+
 ## Konfiguracja
 
 ```yaml
-title: Grzegorz Waga
-path: grzegorz-waga
+title: Jan Waga
+path: jan-waga
 panel: true
 cards:
   - type: custom:health-card
-    entity_id: sensor.pixel_weight          # encja wagi (wymagane)
-    start_weight: 134.5                      # waga startowa w kg
-    start_date: "2025-10-30"                 # data startu
+    entity_id: sensor.weight                 # encja wagi (wymagane)
+    start_weight: 90.0                       # waga startowa w kg
+    start_date: "2025-01-01"                 # data startu
     height_cm_entity: input_number.wzrost   # encja wzrostu (opcjonalne)
-    height_cm: 178                           # wzrost w cm (fallback)
+    height_cm: 175                           # wzrost w cm (fallback)
     history_days: 365                        # ile dni historii pobierać
     goals:
       - key: blood_donation                  # blood_donation = specjalny alert 7 dni przed
@@ -74,11 +77,15 @@ cards:
         color: "#1D9E75"
 ```
 
+---
+
 ## Wymagania
 
 - Home Assistant 2023.0.0+
 - Encja wagi musi mieć `state_class: measurement` aby była w long-term statistics HA
 
-## Dostosowanie
+---
 
-Karta jest w pełni uniwersalna — każda osoba może mieć własną konfigurację YAML z inną encją, wagą startową i celami. Jeden plik `health-card.js` obsługuje wszystkich użytkowników.
+## Dla wielu użytkowników
+
+Jeden plik `health-card.js` obsługuje wszystkich — każda osoba konfiguruje własną kartę przez YAML z inną encją, wagą startową i celami.
