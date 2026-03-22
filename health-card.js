@@ -377,11 +377,11 @@ class HealthCard extends HTMLElement {
     }).join('');
 
     this.shadowRoot.getElementById('content').innerHTML =
-      '<div class="nav">' +
-        '<button class="nav-btn active" onclick="this.getRootNode().host._switchPage(\'weight\')">&#9878; Waga</button>' +
-        '<button class="nav-btn" onclick="this.getRootNode().host._switchPage(\'pressure\')">&#128138; Ci&#347;nienie</button>' +
-        '<button class="nav-btn" onclick="this.getRootNode().host._switchPage(\'activity\')">&#127939; Aktywno&#347;&#263;</button>' +
-        '<button class="nav-btn" onclick="this.getRootNode().host._switchPage(\'settings\')">&#9881; Konfiguracja</button>' +
+      '<div class="nav" id="health-nav">' +
+        '<button class="nav-btn active" data-page="weight">&#9878; Waga</button>' +
+        '<button class="nav-btn" data-page="pressure">&#128138; Ci&#347;nienie</button>' +
+        '<button class="nav-btn" data-page="activity">&#127939; Aktywno&#347;&#263;</button>' +
+        '<button class="nav-btn" data-page="settings">&#9881; Konfiguracja</button>' +
       '</div>' +
       '<div id="page-weight" class="nav-page active">' +
       alertHtml +
@@ -418,6 +418,15 @@ class HealthCard extends HTMLElement {
       '</div>';
 
     this._drawChart(labels, weights, trend);
+    // Podepnij event listener do nawigacji
+    var nav = this.shadowRoot.getElementById('health-nav');
+    if (nav) {
+      var self = this;
+      nav.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-page]');
+        if (btn) self._switchPage(btn.getAttribute('data-page'));
+      });
+    }
 
   }
 
@@ -548,10 +557,13 @@ class HealthCard extends HTMLElement {
           '<div class="bp-stat"><div class="bp-stat-label">&#216; Puls</div><div class="bp-stat-val">' + avg(pulRecent) + ' bpm</div></div>' +
           '<div class="bp-stat"><div class="bp-stat-label">Min / Max</div><div class="bp-stat-val">' + mn(pulRecent) + ' / ' + mx(pulRecent) + '</div></div>' +
         '</div>' +
-        '<div class="report-period">' + 'Okres raportu: ' + '<select id="report-period-select">' + '<option value="7">Ostatnie 7 dni</option>' + '<option value="14">Ostatnie 14 dni</option>' + '<option value="30" selected>Ostatnie 30 dni</option>' + '<option value="90">Ostatnie 90 dni</option>' + '</select>' + '</div>' + '<button class="report-btn" onclick="this.getRootNode().host._generateBpPdf()">&#128196; Generuj raport PDF</button>' + '<h3>&#128200; Historia (90 dni)</h3>' +
+        '<div class="report-period">' + 'Okres raportu: ' + '<select id="report-period-select">' + '<option value="7">Ostatnie 7 dni</option>' + '<option value="14">Ostatnie 14 dni</option>' + '<option value="30" selected>Ostatnie 30 dni</option>' + '<option value="90">Ostatnie 90 dni</option>' + '</select>' + '</div>' + '<button class="report-btn" id="btn-gen-pdf">&#128196; Generuj raport PDF</button>' + '<h3>&#128200; Historia (90 dni)</h3>' +
         '<div class="chart-wrap"><canvas id="bpChart"></canvas></div>';
 
       self._drawBpChart(labels, sysDaily, diaDaily, pulDaily);
+      // Podepnij przycisk PDF
+      var pdfBtn = self.shadowRoot.getElementById('btn-gen-pdf');
+      if (pdfBtn) pdfBtn.addEventListener('click', function() { self._generateBpPdf(); });
 
     } catch(err) {
       page.innerHTML = '<div style="color:#E24B4A;padding:20px">B&#322;&#261;d: ' + err.message + '</div>';
