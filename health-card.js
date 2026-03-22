@@ -136,7 +136,7 @@ class HealthCard extends HTMLElement {
   }
 
   async _fetchStats(startDate, endDate, period) {
-    return this._hass.callWS({
+    return this._hass.connection.sendMessagePromise({
       type:          'recorder/statistics_during_period',
       start_time:    startDate.toISOString(),
       end_time:      endDate.toISOString(),
@@ -416,27 +416,6 @@ class HealthCard extends HTMLElement {
 
     this._drawChart(labels, weights, trend);
 
-    // Dodaj puste strony
-    var pageWeight = this.shadowRoot.getElementById('page-weight');
-    if (pageWeight) {
-      pageWeight.insertAdjacentHTML('afterend',
-        '<div id="page-pressure" class="nav-page"></div>' +
-        '<div id="page-activity" class="nav-page">' +
-          '<div class="empty-page">' +
-            '<div class="icon">&#127939;</div>' +
-            '<div class="title">Aktywno&#347;&#263;</div>' +
-            '<div>W budowie &mdash; wkr&#243;tce</div>' +
-          '</div>' +
-        '</div>' +
-        '<div id="page-settings" class="nav-page">' +
-          '<div class="empty-page">' +
-            '<div class="icon">&#9881;</div>' +
-            '<div class="title">Konfiguracja</div>' +
-            '<div>W budowie &mdash; wkr&#243;tce</div>' +
-          '</div>' +
-        '</div>'
-      );
-    }
   }
 
   _switchPage(page) {
@@ -447,9 +426,13 @@ class HealthCard extends HTMLElement {
     }
     var r = this.shadowRoot;
     var pages = ['weight', 'pressure', 'activity', 'settings'];
+    // Waga używa #content, reszta używa page-*
+    var content = r.getElementById('content');
+    if (content) content.style.display = page === 'weight' ? '' : 'none';
     pages.forEach(function(p) {
+      if (p === 'weight') return;
       var el = r.getElementById('page-' + p);
-      if (el) el.classList.toggle('active', p === page);
+      if (el) el.style.display = p === page ? '' : 'none';
     });
     r.querySelectorAll('.nav-btn').forEach(function(btn, i) {
       btn.classList.toggle('active', i === pages.indexOf(page));
@@ -591,7 +574,7 @@ class HealthCard extends HTMLElement {
 
   async _fetchStatsByEntity(entityId, startDate, endDate, period) {
     if (!entityId) return {};
-    return this._hass.callWS({
+    return this._hass.connection.sendMessagePromise({
       type:          'recorder/statistics_during_period',
       start_time:    startDate.toISOString(),
       end_time:      endDate.toISOString(),
