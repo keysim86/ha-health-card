@@ -36,7 +36,6 @@ class HealthCard extends HTMLElement {
   }
 
   _ts(s) {
-    if (s.last_changed) return new Date(s.last_changed).getTime();
     if (typeof s.start === 'number') {
       return s.start < 1e12 ? s.start * 1000 : s.start;
     }
@@ -174,6 +173,7 @@ class HealthCard extends HTMLElement {
       }
 
       var map = new Map();
+
       for (var i = 0; i < ltStats.length; i++) {
         var s   = ltStats[i];
         var val = s.mean != null ? s.mean : s.state;
@@ -181,6 +181,7 @@ class HealthCard extends HTMLElement {
         var day = this._day(this._ts(s));
         if (!map.has(day)) map.set(day, Math.round(val * 100) / 100);
       }
+
       var stMap = new Map();
       for (var j = 0; j < stStats.length; j++) {
         var ss   = stStats[j];
@@ -192,6 +193,12 @@ class HealthCard extends HTMLElement {
       stMap.forEach(function(v, k) { map.set(k, v); });
 
       var daily = Array.from(map.entries()).sort(function(a,b){ return a[0].localeCompare(b[0]); });
+
+      if (daily.length === 0) {
+        content.innerHTML = '<div style="color:#E24B4A;padding:20px;text-align:center">Brak przetworzonych danych.</div>';
+        return;
+      }
+
       this._daily = daily;
       this._updateUI(daily);
 
@@ -288,6 +295,7 @@ class HealthCard extends HTMLElement {
         .report-btn:hover { background: var(--primary-color, #1D9E75); color: #fff; }
         .report-period { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; color: var(--secondary-text-color); }
         .report-period select { background: var(--secondary-background-color); color: var(--primary-text-color); border: 0.5px solid var(--color-border-secondary, rgba(255,255,255,0.2)); border-radius: 8px; padding: 5px 10px; font-size: 13px; font-family: inherit; cursor: pointer; }
+
       </style>
       <ha-card>
         <div id="wrap">
@@ -407,6 +415,7 @@ class HealthCard extends HTMLElement {
     this._drawChart(labels, weights, trend);
     var nav = this.shadowRoot.getElementById('health-nav');
     if (nav) {
+      var self = this;
       nav.addEventListener('click', function(e) {
         var btn = e.target.closest('[data-page]');
         if (btn) self._switchPage(btn.getAttribute('data-page'));
@@ -442,7 +451,8 @@ class HealthCard extends HTMLElement {
     page.innerHTML = '<div class="loading">&#321;adowanie danych ci&#347;nienia...</div>';
     try {
       var now   = new Date();
-      var start = new Date(now); start.setDate(start.getDate() - 90);
+      var start = new Date(now);
+      start.setDate(start.getDate() - 90);
 
       var results = await Promise.all([
         this._fetchStatsByEntity(this.config.bp_systolic,  start, now, 'hour'),
@@ -450,43 +460,118 @@ class HealthCard extends HTMLElement {
         this._fetchStatsByEntity(this.config.bp_pulse,     start, now, 'hour'),
       ]);
 
-      var sysNow = this._hass.states[this.config.bp_systolic] ? Math.round(parseFloat(this._hass.states[this.config.bp_systolic].state)) : '—';
-      var diaNow = this._hass.states[this.config.bp_diastolic] ? Math.round(parseFloat(this._hass.states[this.config.bp_diastolic].state)) : '—';
-      var pulNow = this._hass.states[this.config.bp_pulse] ? Math.round(parseFloat(this._hass.states[this.config.bp_pulse].state)) : '—';
-      var catNow = this.config.bp_category ? this._hass.states[this.config.bp_category]?.state : null;
+      var sysStats  = results[0][this.config.bp_systolic]  || [];
+      var diaStats  = results[1][this.config.bp_diastolic] || [];
+      var pulStats  = results[2][this.config.bp_pulse]     || [];
 
-      var alertClass = 'ok'; var alertText = catNow || 'Prawidłowe';
-      if (catNow && (catNow.includes('wysok') || catNow.includes('Nadci'))) alertClass = 'danger';
+      if (sysStats.length === 0) {
+        page.innerHTML = '<div class="empty-page"><div class="icon">&#128138;</div><div class="title">Brak danych</div><div>Sprawd&#378; encje ci&#347;nienia w konfiguracji</div></div>';
+        return;
+      }
 
-      page.innerHTML = `
-        <div class="bp-alert ${alertClass}">${alertText}</div>
-        <div class="bp-grid">
-          <div class="bp-metric"><div class="bp-label">Skurczowe</div><div class="bp-value">${sysNow}<span class="bp-unit">mmHg</span></div></div>
-          <div class="bp-metric"><div class="bp-label">Rozkurczowe</div><div class="bp-value">${diaNow}<span class="bp-unit">mmHg</span></div></div>
-          <div class="bp-metric"><div class="bp-label">Puls</div><div class="bp-value">${pulNow}<span class="bp-unit">bpm</span></div></div>
-        </div>
-        <div class="report-period">Okres raportu: <select id="report-period-select"><option value="7">7 dni</option><option value="14">14 dni</option><option value="30" selected>30 dni</option></select></div>
-        <button class="report-btn" id="btn-gen-pdf">&#128196; Generuj raport PDF</button>
-        <div class="chart-wrap"><canvas id="bpChart"></canvas></div>`;
+      var sysState = this._hass.states[this.config.bp_systolic];
+      var diaState = this._hass.states[this.config.bp_diastolic];
+      var pulState = this._hass.states[this.config.bp_pulse];
+      var catState = this.config.bp_category ? this._hass.states[this.config.bp_category] : null;
 
-      this._drawBpChart(results);
-      this.shadowRoot.getElementById('btn-gen-pdf').addEventListener('click', function() { self._generateBpPdf(); });
-    } catch(err) { page.innerHTML = 'Błąd: ' + err.message; }
+      var sysNow = sysState ? Math.round(parseFloat(sysState.state)) : '—';
+      var diaNow = diaState ? Math.round(parseFloat(diaState.state)) : '—';
+      var pulNow = pulState ? Math.round(parseFloat(pulState.state)) : '—';
+      var catNow = catState ? catState.state : null;
+
+      var cutDate = new Date(now); cutDate.setDate(cutDate.getDate() - 30);
+      var cutStr  = cutDate.toLocaleDateString('sv-SE');
+
+      var sysRecent = sysStats.filter(function(s) {
+        return self._day(self._ts(s)) >= cutStr;
+      }).map(function(s){ return s.mean != null ? s.mean : s.state; }).filter(function(v){ return !isNaN(v); });
+
+      var diaRecent = diaStats.filter(function(s) {
+        return self._day(self._ts(s)) >= cutStr;
+      }).map(function(s){ return s.mean != null ? s.mean : s.state; }).filter(function(v){ return !isNaN(v); });
+
+      var pulRecent = pulStats.filter(function(s) {
+        return self._day(self._ts(s)) >= cutStr;
+      }).map(function(s){ return s.mean != null ? s.mean : s.state; }).filter(function(v){ return !isNaN(v); });
+
+      var avg = function(arr) { return arr.length ? Math.round(arr.reduce(function(a,b){return a+b;},0)/arr.length) : '—'; };
+      var mn  = function(arr) { return arr.length ? Math.round(Math.min.apply(null,arr)) : '—'; };
+      var mx  = function(arr) { return arr.length ? Math.round(Math.max.apply(null,arr)) : '—'; };
+
+      var alertHtml = '';
+      var alertClass = 'ok';
+      var alertText  = 'Ci&#347;nienie w normie';
+      if (catNow) {
+        var cat = catNow.toLowerCase();
+        if (cat.includes('wysok') || cat.includes('high') || cat.includes('nadci')) {
+          alertClass = 'danger'; alertText = '&#9888; ' + catNow;
+        } else if (cat.includes('podwy') || cat.includes('elevated') || cat.includes('pre')) {
+          alertClass = 'warn'; alertText = '&#9888; ' + catNow;
+        } else {
+          alertClass = 'ok'; alertText = '&#10003; ' + catNow;
+        }
+      } else if (typeof sysNow === 'number' && typeof diaNow === 'number') {
+        if (sysNow >= 140 || diaNow >= 90) {
+          alertClass = 'danger'; alertText = '&#9888; Nadci&#347;nienie';
+        } else if (sysNow >= 130 || diaNow >= 80) {
+          alertClass = 'warn'; alertText = '&#9888; Podwy&#380;szone';
+        }
+      }
+      alertHtml = '<div class="bp-alert ' + alertClass + '">' + alertText + '</div>';
+
+      var sysColor = (typeof sysNow === 'number' && sysNow >= 140) ? '#E24B4A' : (sysNow >= 130 ? '#BA7517' : '#1D9E75');
+      var diaColor = (typeof diaNow === 'number' && diaNow >= 90)  ? '#E24B4A' : (diaNow >= 80  ? '#BA7517' : '#1D9E75');
+      var pulColor = (typeof pulNow === 'number' && (pulNow > 100 || pulNow < 50)) ? '#BA7517' : '#3B8BD4';
+
+      var sysDaily = self._statToDaily(sysStats);
+      var diaDaily = self._statToDaily(diaStats);
+      var pulDaily = self._statToDaily(pulStats);
+      var labels = sysDaily.map(function(d){ return d[0]; });
+
+      page.innerHTML =
+        alertHtml +
+        '<div class="bp-grid">' +
+          '<div class="bp-metric"><div class="bp-label">Skurczowe</div><div class="bp-value" style="color:' + sysColor + '">' + sysNow + '<span class="bp-unit">mmHg</span></div></div>' +
+          '<div class="bp-metric"><div class="bp-label">Rozkurczowe</div><div class="bp-value" style="color:' + diaColor + '">' + diaNow + '<span class="bp-unit">mmHg</span></div></div>' +
+          '<div class="bp-metric"><div class="bp-label">Puls</div><div class="bp-value" style="color:' + pulColor + '">' + pulNow + '<span class="bp-unit">bpm</span></div></div>' +
+        '</div>' +
+        '<h3>&#128202; Statystyki (30 dni)</h3>' +
+        '<div class="bp-stats">' +
+          '<div class="bp-stat"><div class="bp-stat-label">&#216; Skurczowe</div><div class="bp-stat-val">' + avg(sysRecent) + ' mmHg</div></div>' +
+          '<div class="bp-stat"><div class="bp-stat-label">Min / Max</div><div class="bp-stat-val">' + mn(sysRecent) + ' / ' + mx(sysRecent) + '</div></div>' +
+          '<div class="bp-stat"><div class="bp-stat-label">&#216; Rozkurczowe</div><div class="bp-stat-val">' + avg(diaRecent) + ' mmHg</div></div>' +
+          '<div class="bp-stat"><div class="bp-stat-label">Min / Max</div><div class="bp-stat-val">' + mn(diaRecent) + ' / ' + mx(diaRecent) + '</div></div>' +
+          '<div class="bp-stat"><div class="bp-stat-label">&#216; Puls</div><div class="bp-stat-val">' + avg(pulRecent) + ' bpm</div></div>' +
+          '<div class="bp-stat"><div class="bp-stat-label">Min / Max</div><div class="bp-stat-val">' + mn(pulRecent) + ' / ' + mx(pulRecent) + '</div></div>' +
+        '</div>' +
+        '<div class="report-period">' + 'Okres raportu: ' + '<select id="report-period-select">' + '<option value="7">Ostatnie 7 dni</option>' + '<option value="14">Ostatnie 14 dni</option>' + '<option value="30" selected>Ostatnie 30 dni</option>' + '<option value="90">Ostatnie 90 dni</option>' + '</select>' + '</div>' + '<button class="report-btn" id="btn-gen-pdf">&#128196; Generuj raport PDF</button>' + '<h3>&#128200; Historia (90 dni)</h3>' +
+        '<div class="chart-wrap"><canvas id="bpChart"></canvas></div>';
+
+      self._drawBpChart(labels, sysDaily, diaDaily, pulDaily);
+      var pdfBtn = self.shadowRoot.getElementById('btn-gen-pdf');
+      if (pdfBtn) pdfBtn.addEventListener('click', function() { self._generateBpPdf(); });
+
+    } catch(err) {
+      page.innerHTML = '<div style="color:#E24B4A;padding:20px">B&#322;&#261;d: ' + err.message + '</div>';
+    }
   }
 
-  // --- POPRAWIONA FUNKCJA GENEROWANIA PDF (TYLKO TO ZMIENIŁEM) ---
+  // --- TUTAJ ZMIENIONA FUNKCJA GENEROWANIA PDF (POBIERA REALNĄ HISTORIĘ) ---
   async _generateBpPdf() {
     var self    = this;
     var select  = this.shadowRoot.getElementById('report-period-select');
     var days    = select ? parseInt(select.value) : 30;
     var now     = new Date();
-    var start   = new Date(now); start.setDate(start.getDate() - days);
+    var start   = new Date(now);
+    start.setDate(start.getDate() - days);
+    var startStr = start.toLocaleDateString('pl-PL');
+    var endStr   = now.toLocaleDateString('pl-PL');
 
-    // Pobieramy historię stanów (nie statystyki), aby mieć realne punkty pomiarowe jak w Postgresie
+    // Używamy history/period zamiast statistics, aby dostać surowe punkty pomiarowe
     const fetchHist = async (ent) => await this._hass.callApi('GET', `history/period/${start.toISOString()}?filter_entity_id=${ent}&end_time=${now.toISOString()}`);
 
     try {
-      const histResults = await Promise.all([
+      const results = await Promise.all([
         fetchHist(this.config.bp_systolic),
         fetchHist(this.config.bp_diastolic),
         fetchHist(this.config.bp_pulse)
@@ -496,12 +581,16 @@ class HealthCard extends HTMLElement {
       const process = (data, key) => {
         if (!data[0]) return;
         data[0].forEach(s => {
-          const ts = new Date(s.last_changed).setSeconds(0,0);
+          const d = new Date(s.last_changed);
+          const ts = d.setSeconds(d.getSeconds(), 0); // Używamy pełnej precyzji do grupowania
           if (!tsMap.has(ts)) tsMap.set(ts, { ts, sys:null, dia:null, pul:null });
           tsMap.get(ts)[key] = Math.round(parseFloat(s.state));
         });
       };
-      process(histResults[0], 'sys'); process(histResults[1], 'dia'); process(histResults[2], 'pul');
+
+      process(results[0], 'sys');
+      process(results[1], 'dia');
+      process(results[2], 'pul');
 
       var measurements = Array.from(tsMap.values())
         .filter(m => m.sys && m.dia)
@@ -515,34 +604,58 @@ class HealthCard extends HTMLElement {
         return 'Nadciśnienie';
       };
 
+      var timeOfDay = function(ts) {
+        var h = new Date(ts).getHours();
+        if (h >= 5  && h < 12) return 'Rano';
+        if (h >= 12 && h < 17) return 'Południe';
+        if (h >= 17 && h < 21) return 'Wieczór';
+        return 'Noc';
+      };
+
       var rows = measurements.map(m => {
         var d = new Date(m.ts);
-        var pora = d.getHours() < 12 ? 'Rano' : (d.getHours() < 17 ? 'Południe' : 'Wieczór');
         return `<tr>
           <td>${d.toLocaleDateString('pl-PL')}</td>
           <td>${d.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})}</td>
-          <td>${pora}</td>
+          <td>${timeOfDay(m.ts)}</td>
           <td style="font-weight:700; color:${m.sys>=140?'#c0392b':'#27ae60'}">${m.sys}</td>
           <td style="font-weight:700; color:${m.dia>=90?'#c0392b':'#27ae60'}">${m.dia}</td>
           <td>${m.pul || '—'}</td>
           <td>${catLabel(m.sys, m.dia)}</td>
         </tr>`;
-      }).join('');
+      }).reverse().join('');
+
+      var sysList = measurements.map(m => m.sys);
+      var diaList = measurements.map(m => m.dia);
+      var pulList = measurements.filter(m => m.pul).map(m => m.pul);
+      var avg = (a) => a.length ? (a.reduce((x,y)=>x+y,0)/a.length).toFixed(1) : '—';
 
       var html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-        body{font-family:Arial,sans-serif; font-size:13px; padding:20px;}
-        h1{text-align:center; text-transform:uppercase; font-size:16px;}
+        body{font-family:Arial,sans-serif; font-size:13px; padding:20px; color:#333;}
+        h1{text-align:center; text-transform:uppercase; font-size:16px; margin-bottom:20px;}
+        .info{margin-bottom:20px;}
         table{width:100%; border-collapse:collapse; margin-bottom:20px;}
-        th{background:#1a5276; color:white; padding:8px;}
-        td{padding:6px; border-bottom:1px solid #ddd; text-align:center;}
-        .stat-table{border:2px solid #1a5276;}
-        .footer{font-size:10px; text-align:center; color:#888;}
+        th{background:#1a5276; color:white; padding:8px; font-size:12px;}
+        td{padding:8px; border-bottom:1px solid #eee; text-align:center;}
+        tr:nth-child(even){background:#f9f9f9;}
+        .stat-table{border:2px solid #1a5276; margin-top:20px;}
+        .footer{font-size:10px; color:#888; text-align:center; margin-top:30px;}
       </style></head><body>
-        <h1>Raport pomiarów ciśnienia tętniczego</h1>
-        <p><b>Pacjent:</b> ${this.config.report_name} | <b>Okres:</b> ${start.toLocaleDateString('pl-PL')} - ${now.toLocaleDateString('pl-PL')}</p>
+        <h1>RAPORT POMIARÓW CIŚNIENIA TĘTNICZEGO</h1>
+        <div class="info">
+          <b>Pacjent:</b> ${this.config.report_name} | <b>Okres:</b> ${startStr} - ${endStr}<br>
+          <b>Urządzenie:</b> ${this.config.report_device}
+        </div>
         <table><thead><tr><th>Data</th><th>Czas</th><th>Pora</th><th>SYS</th><th>DIA</th><th>Puls</th><th>Kategoria</th></tr></thead>
         <tbody>${rows}</tbody></table>
-        <div class="footer">Wygenerowano: ${now.toLocaleString()} | Liczba pomiarów: ${measurements.length}</div>
+        <table class="stat-table">
+          <thead><tr><th>Parametr</th><th>Średnia</th><th>Min</th><th>Max</th><th>Ocena</th></tr></thead>
+          <tbody>
+            <tr><td>Skurczowe</td><td>${avg(sysList)}</td><td>${Math.min(...sysList)}</td><td>${Math.max(...sysList)}</td><td rowspan="2">${catLabel(parseFloat(avg(sysList)), parseFloat(avg(diaList)))}</td></tr>
+            <tr><td>Rozkurczowe</td><td>${avg(diaList)}</td><td>${Math.min(...diaList)}</td><td>${Math.max(...diaList)}</td></tr>
+          </tbody>
+        </table>
+        <div class="footer">Wygenerowano: ${now.toLocaleString('pl-PL')} | Liczba pomiarów: ${measurements.length}</div>
       </body></html>`;
 
       var win = window.open('','_blank');
@@ -551,26 +664,26 @@ class HealthCard extends HTMLElement {
     } catch(err) { console.error(err); }
   }
 
-  _drawBpChart(results) {
-    var canvas = this.shadowRoot.getElementById('bpChart');
-    if (!canvas || !window.Chart) return;
-    new window.Chart(canvas, {
-      type: 'line',
-      data: {
-        labels: (results[0][this.config.bp_systolic] || []).map(s => this._day(this._ts(s))),
-        datasets: [
-          { label: 'SYS', data: (results[0][this.config.bp_systolic] || []).map(s => s.mean), borderColor: '#E24B4A' },
-          { label: 'DIA', data: (results[1][this.config.bp_diastolic] || []).map(s => s.mean), borderColor: '#3B8BD4' }
-        ]
-      },
-      options: { responsive: true, maintainAspectRatio: false }
+  _statToDaily(stats) {
+    var map  = new Map();
+    for (var i = 0; i < stats.length; i++) {
+      var s   = stats[i];
+      var val = s.mean != null ? s.mean : s.state;
+      if (val == null || isNaN(val)) continue;
+      var day = this._day(this._ts(s));
+      if (!map.has(day)) map.set(day, []);
+      map.get(day).push(parseFloat(val));
+    }
+    return Array.from(map.entries()).sort((a,b) => a[0].localeCompare(b[0])).map(e => {
+      var avg = e[1].reduce((a,b) => a+b, 0) / e[1].length;
+      return [e[0], Math.round(avg * 10) / 10];
     });
   }
 
   async _fetchStatsByEntity(entityId, startDate, endDate, period) {
     if (!entityId) return {};
     return this._hass.connection.sendMessagePromise({
-      type:          'recorder/statistics_during_period',
+      type:           'recorder/statistics_during_period',
       start_time:    startDate.toISOString(),
       end_time:      endDate.toISOString(),
       statistic_ids: [entityId],
@@ -579,24 +692,50 @@ class HealthCard extends HTMLElement {
     });
   }
 
-  _drawChart(labels, weights, trend) {
+  _drawBpChart(labels, sysDaily, diaDaily, pulDaily) {
     var self = this;
     var draw = function() {
-      var canvas = self.shadowRoot.getElementById('wChart');
+      var canvas = self.shadowRoot.getElementById('bpChart');
       if (!canvas) return;
       new window.Chart(canvas, {
-        type: 'line',
         data: {
           labels: labels,
           datasets: [
-            { label: 'Waga', data: weights, borderColor: '#378ADD', fill: true, backgroundColor: 'rgba(55,138,221,0.08)' },
-            { label: 'Trend', data: trend, borderColor: '#1D9E75', borderDash: [5,5], pointRadius: 0 }
+            { type: 'line', label: 'Skurczowe', data: sysDaily.map(d => d[1]), borderColor: '#E24B4A', tension: 0.3, fill: false },
+            { type: 'line', label: 'Rozkurczowe', data: diaDaily.map(d => d[1]), borderColor: '#3B8BD4', tension: 0.3, fill: false },
+            { type: 'line', label: 'Puls', data: pulDaily.map(d => d[1]), borderColor: '#1D9E75', tension: 0.3, fill: false }
           ]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 40, max: 200 } } }
       });
     };
     if (window.Chart) draw(); else setTimeout(draw, 500);
+  }
+
+  _drawChart(labels, weights, trend) {
+    var self = this;
+    if (window.Chart) { this._initChart(labels, weights, trend); }
+    else {
+      var s  = document.createElement('script');
+      s.src  = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+      s.onload = function() { self._initChart(labels, weights, trend); };
+      document.head.appendChild(s);
+    }
+  }
+
+  _initChart(labels, weights, trend) {
+    var canvas = this.shadowRoot.getElementById('wChart');
+    if (!canvas) return;
+    this._chart = new window.Chart(canvas, {
+      data: {
+        labels: labels,
+        datasets: [
+          { type: 'line', label: 'Waga', data: weights, borderColor: '#378ADD', fill: true, backgroundColor: 'rgba(55,138,221,0.08)', tension: 0.3 },
+          { type: 'line', label: 'Trend', data: trend, borderColor: '#1D9E75', borderWidth: 2.5, pointRadius: 0, tension: 0.4 }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
   }
 
   _switchTab(tab) {
@@ -610,7 +749,7 @@ class HealthCard extends HTMLElement {
   _switchRange(range) {
     var r = this.shadowRoot;
     ['all','6m','3m','30d','14d','7d'].forEach(x => r.getElementById('range-'+x)?.classList.toggle('active', x===range));
-    this._loadData(); // Re-render simple for this demo
+    this._loadData();
   }
 
   getCardSize() { return 12; }
