@@ -266,6 +266,15 @@ class HealthCard extends HTMLElement {
         .note { font-size: 10px; color: var(--secondary-text-color); margin-top: 4px; }
         .loading { text-align: center; color: var(--secondary-text-color); padding: 40px; }
         code { background: var(--secondary-background-color); padding: 1px 4px; border-radius: 4px; font-size: 11px; }
+        .nav { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.1)); padding-bottom: 0; }
+        .nav-btn { padding: 8px 16px; font-size: 13px; cursor: pointer; background: none; border: none; color: var(--secondary-text-color); border-bottom: 2px solid transparent; margin-bottom: -1px; user-select: none; font-family: inherit; }
+        .nav-btn:hover { color: var(--primary-text-color); }
+        .nav-btn.active { color: var(--primary-color, #1D9E75); border-bottom-color: var(--primary-color, #1D9E75); font-weight: 500; }
+        .nav-page { display: none; }
+        .nav-page.active { display: block; }
+        .empty-page { text-align: center; padding: 60px 20px; color: var(--secondary-text-color); font-size: 14px; }
+        .empty-page .icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-page .title { font-size: 16px; font-weight: 500; color: var(--primary-text-color); margin-bottom: 8px; }
       </style>
       <ha-card>
         <div id="wrap">
@@ -339,6 +348,13 @@ class HealthCard extends HTMLElement {
     }).join('');
 
     this.shadowRoot.getElementById('content').innerHTML =
+      '<div class="nav">' +
+        '<button class="nav-btn active" onclick="this.getRootNode().host._switchPage(\'weight\')">&#9878; Waga</button>' +
+        '<button class="nav-btn" onclick="this.getRootNode().host._switchPage(\'pressure\')">&#128138; Ci&#347;nienie</button>' +
+        '<button class="nav-btn" onclick="this.getRootNode().host._switchPage(\'activity\')">&#127939; Aktywno&#347;&#263;</button>' +
+        '<button class="nav-btn" onclick="this.getRootNode().host._switchPage(\'settings\')">&#9881; Konfiguracja</button>' +
+      '</div>' +
+      '<div id="page-weight" class="nav-page active">' +
       alertHtml +
       '<div class="metric-grid">' +
         '<div class="metric"><div class="metric-label">Start (' + this.config.start_date + ')</div><div class="metric-value">' + this.config.start_weight.toFixed(2) + ' kg</div><div class="metric-sub">punkt wyjścia</div></div>' +
@@ -369,9 +385,50 @@ class HealthCard extends HTMLElement {
         '<div class="tab" id="range-7d" onclick="this.getRootNode().host._switchRange(\'7d\')">7 dni</div>' +
       '</div>' +
       '<div class="legend"><span><span class="ldot" style="background:#378ADD"></span>Dzienna waga</span><span><span class="ldot" style="background:#1D9E75"></span>Trend 7 dni</span>' + legendGoals + '</div>' +
-      '<div class="chart-wrap"><canvas id="wChart"></canvas></div>';
+      '<div class="chart-wrap"><canvas id="wChart"></canvas></div>' +
+      '</div>';
 
     this._drawChart(labels, weights, trend);
+
+    // Dodaj puste strony
+    var pageWeight = this.shadowRoot.getElementById('page-weight');
+    if (pageWeight) {
+      pageWeight.insertAdjacentHTML('afterend',
+        '<div id="page-pressure" class="nav-page">' +
+          '<div class="empty-page">' +
+            '<div class="icon">&#128138;</div>' +
+            '<div class="title">Ci&#347;nienie krwi</div>' +
+            '<div>W budowie &mdash; wkr&#243;tce</div>' +
+          '</div>' +
+        '</div>' +
+        '<div id="page-activity" class="nav-page">' +
+          '<div class="empty-page">' +
+            '<div class="icon">&#127939;</div>' +
+            '<div class="title">Aktywno&#347;&#263;</div>' +
+            '<div>W budowie &mdash; wkr&#243;tce</div>' +
+          '</div>' +
+        '</div>' +
+        '<div id="page-settings" class="nav-page">' +
+          '<div class="empty-page">' +
+            '<div class="icon">&#9881;</div>' +
+            '<div class="title">Konfiguracja</div>' +
+            '<div>W budowie &mdash; wkr&#243;tce</div>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+  }
+
+  _switchPage(page) {
+    var r = this.shadowRoot;
+    var pages = ['weight', 'pressure', 'activity', 'settings'];
+    pages.forEach(function(p) {
+      var el = r.getElementById('page-' + p);
+      if (el) el.classList.toggle('active', p === page);
+    });
+    r.querySelectorAll('.nav-btn').forEach(function(btn, i) {
+      btn.classList.toggle('active', i === pages.indexOf(page));
+    });
   }
 
   _switchTab(tab) {
