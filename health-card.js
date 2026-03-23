@@ -13,28 +13,28 @@ class HealthCard extends HTMLElement {
 
   setConfig(config) {
     this.config = {
-      entity_id:        config.entity_id        || 'sensor.weight',
+      entity_id:        config.entity_id        || '',
       start_weight:     config.start_weight     || 100.0,
       start_date:       config.start_date       || '2025-01-01',
-      height_cm_entity: config.height_cm_entity || 'input_number.wzrost_grzegorz',
+      height_cm_entity: config.height_cm_entity || '',
       height_cm:        config.height_cm        || 175,
       history_days:     config.history_days     || 365,
       goals:            config.goals            || [],
-      bp_systolic:      config.bp_systolic      || 'sensor.bp_grzegorz_skurczowe',
-      bp_diastolic:     config.bp_diastolic     || 'sensor.bp_grzegorz_rozkurczowe',
-      bp_pulse:         config.bp_pulse         || 'sensor.bp_grzegorz_puls',
-      bp_systolic_now:  config.bp_systolic_now  || 'input_number.bp_grzegorz_systolic',
-      bp_diastolic_now: config.bp_diastolic_now || 'input_number.bp_grzegorz_diastolic',
-      bp_pulse_now:     config.bp_pulse_now     || 'input_number.bp_grzegorz_pulse',
-      bp_category:      config.bp_category      || 'sensor.grzegorz_kategoria_cisnienia',
+      bp_systolic:      config.bp_systolic      || '',
+      bp_diastolic:     config.bp_diastolic     || '',
+      bp_pulse:         config.bp_pulse         || '',
+      bp_systolic_now:  config.bp_systolic_now  || '',
+      bp_diastolic_now: config.bp_diastolic_now || '',
+      bp_pulse_now:     config.bp_pulse_now     || '',
+      bp_category:      config.bp_category      || '',
       bp_enabled:       config.bp_enabled !== false,
       steps_entity:    config.steps_entity    || '',
       calories_entity: config.calories_entity || '',
       steps_goal:      config.steps_goal      || 10000,
       calories_goal:   config.calories_goal   || 800,
-      report_name:      config.report_name      || 'Imię Nazwisko',
+      report_name:      config.report_name      || '',
       report_birthdate: config.report_birthdate || '',
-      report_device:    config.report_device    || 'Ciśnieniomierz',
+      report_device:    config.report_device    || '',
       bp_exclude_timestamps: Array.isArray(config.bp_exclude_timestamps) ? config.bp_exclude_timestamps : [],
 
     };
@@ -539,16 +539,23 @@ class HealthCard extends HTMLElement {
     var cfg  = this.config;
 
     var val = function(entityId) {
+      if (!entityId) return '';
       var s = self._hass && self._hass.states[entityId];
       return (s && !isNaN(parseFloat(s.state))) ? Math.round(parseFloat(s.state)) : '';
     };
 
     var field = function(id, label, unit, entityId, min, max) {
+      var hint = entityId ? '<small style="color:var(--secondary-text-color);font-size:10px">' + entityId + '</small>' : '<small style="color:#E24B4A;font-size:10px">brak encji w YAML</small>';
+      var disabled = entityId ? '' : ' disabled';
       return '<div class="de-field">'
         + '<div class="de-label">' + label + '<small>' + unit + '</small></div>'
-        + '<input class="de-input" id="' + id + '" type="number" min="' + min + '" max="' + max + '" value="' + val(entityId) + '" placeholder="—">'
+        + hint
+        + '<input class="de-input" id="' + id + '" type="number" min="' + min + '" max="' + max + '" value="' + val(entityId) + '" placeholder="\u2014"' + disabled + '>'
         + '</div>';
     };
+
+    var bpMissing = !cfg.bp_systolic_now || !cfg.bp_diastolic_now || !cfg.bp_pulse_now;
+    var hMissing  = !cfg.height_cm_entity;
 
     page.innerHTML =
       '<h3>&#128138; Ci&#347;nienie krwi</h3>'
@@ -557,17 +564,17 @@ class HealthCard extends HTMLElement {
       +   field('de-dia', 'Rozkurczowe', 'mmHg', cfg.bp_diastolic_now, 40,  150)
       +   field('de-pul', 'Puls',        'bpm',  cfg.bp_pulse_now,     30,  200)
       + '</div>'
-      + '<button class="report-btn" id="de-save-bp">&#128190; Zapisz ci&#347;nienie</button>'
-      + '<div class="de-status" id="de-status-bp"></div>'
+      + '<button class="report-btn" id="de-save-bp"' + (bpMissing ? ' disabled style="opacity:.4"' : '') + '>&#128190; Zapisz ci&#347;nienie</button>'
+      + '<div class="de-status" id="de-status-bp">' + (bpMissing ? '\u26a0 Skonfiguruj bp_systolic_now, bp_diastolic_now, bp_pulse_now w YAML.' : '') + '</div>'
       + '<h3>&#128207; Wzrost</h3>'
       + '<div class="de-grid-1">'
       +   field('de-height', 'Wzrost', 'cm', cfg.height_cm_entity, 100, 250)
       + '</div>'
-      + '<button class="report-btn" id="de-save-height">&#128190; Zapisz wzrost</button>'
-      + '<div class="de-status" id="de-status-height"></div>';
+      + '<button class="report-btn" id="de-save-height"' + (hMissing ? ' disabled style="opacity:.4"' : '') + '>&#128190; Zapisz wzrost</button>'
+      + '<div class="de-status" id="de-status-height">' + (hMissing ? '\u26a0 Skonfiguruj height_cm_entity w YAML.' : '') + '</div>';
 
-    page.querySelector('#de-save-bp').addEventListener('click',     function() { self._saveBloodPressure(); });
-    page.querySelector('#de-save-height').addEventListener('click', function() { self._saveHeight(); });
+    if (!bpMissing) page.querySelector('#de-save-bp').addEventListener('click',     function() { self._saveBloodPressure(); });
+    if (!hMissing)  page.querySelector('#de-save-height').addEventListener('click', function() { self._saveHeight(); });
   }
 
   _saveBloodPressure() {
@@ -1345,8 +1352,8 @@ class HealthCard extends HTMLElement {
             grid: { display: false }
           },
           y: {
-            min: 85,
-            max: Math.ceil(this.config.start_weight + 2),
+            min: Math.floor(Math.min.apply(null, weights) - 2),
+            max: Math.ceil(Math.max.apply(null, weights.concat([this.config.start_weight || 0])) + 2),
             ticks: { callback: function(v){ return v + ' kg'; }, color: '#73726c', font: { size: 11 }, stepSize: 5 },
             grid: { color: 'rgba(128,128,128,0.1)' }
           }
