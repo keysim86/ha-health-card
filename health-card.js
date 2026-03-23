@@ -331,6 +331,7 @@ class HealthCard extends HTMLElement {
         .setting-label small { display: block; font-size: 10px; color: var(--secondary-text-color); margin-top: 1px; }
         .setting-input { background: var(--card-background-color, #1c1c1c); color: var(--primary-text-color); border: 0.5px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 6px 10px; font-size: 12px; font-family: inherit; width: 200px; min-width: 0; }
         .setting-input:focus { outline: none; border-color: var(--primary-color, #1D9E75); }
+        .setting-input.invalid { border-color: #E24B4A; background: rgba(226,75,74,0.08); }
         .toggle { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
         .toggle input { opacity: 0; width: 0; height: 0; }
         .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.15); border-radius: 24px; transition: .3s; }
@@ -558,15 +559,50 @@ class HealthCard extends HTMLElement {
     var r   = this.shadowRoot;
     var get = function(id) { var el = r.getElementById(id); return el ? el.value.trim() : ''; };
     var chk = function(id) { var el = r.getElementById(id); return el ? el.checked : true; };
+    var st  = r.getElementById('settings-status');
+    var highlight = function(ids, invalid) {
+      ids.forEach(function(id) {
+        var el = r.getElementById(id);
+        if (el) el.classList.toggle('invalid', invalid);
+      });
+    };
+    var err = function(msg, sensorIds, nowIds) {
+      if (st) { st.textContent = msg; st.className = 'settings-status err'; }
+      if (sensorIds) highlight(sensorIds, true);
+      if (nowIds)    highlight(nowIds,    true);
+    };
+
+    var sys  = get('s-bp-systolic'),     dia  = get('s-bp-diastolic'),     pul  = get('s-bp-pulse');
+    var sysN = get('s-bp-systolic-now'), diaN = get('s-bp-diastolic-now'), pulN = get('s-bp-pulse-now');
+
+    // Wyczyść poprzednie podświetlenia
+    highlight(['s-bp-systolic','s-bp-diastolic','s-bp-pulse','s-bp-systolic-now','s-bp-diastolic-now','s-bp-pulse-now'], false);
+
+    // Walidacja: sensory historii — albo wszystkie, albo żaden
+    var sensorCount = [sys, dia, pul].filter(Boolean).length;
+    if (sensorCount > 0 && sensorCount < 3) {
+      err('\u26a0 Wype\u0142nij wszystkie trzy sensory historii lub zostaw wszystkie puste.',
+        ['s-bp-systolic','s-bp-diastolic','s-bp-pulse'].filter(function(id) { return !get(id); }));
+      return;
+    }
+
+    // Walidacja: input_number — albo wszystkie, albo żaden
+    var nowCount = [sysN, diaN, pulN].filter(Boolean).length;
+    if (nowCount > 0 && nowCount < 3) {
+      err('\u26a0 Wype\u0142nij wszystkie trzy encje aktualnej warto\u015bci lub zostaw wszystkie puste.',
+        null,
+        ['s-bp-systolic-now','s-bp-diastolic-now','s-bp-pulse-now'].filter(function(id) { return !get(id); }));
+      return;
+    }
 
     var ov = {
       bp_enabled:       chk('s-bp-enabled'),
-      bp_systolic:      get('s-bp-systolic'),
-      bp_diastolic:     get('s-bp-diastolic'),
-      bp_pulse:         get('s-bp-pulse'),
-      bp_systolic_now:  get('s-bp-systolic-now'),
-      bp_diastolic_now: get('s-bp-diastolic-now'),
-      bp_pulse_now:     get('s-bp-pulse-now'),
+      bp_systolic:      sys,
+      bp_diastolic:     dia,
+      bp_pulse:         pul,
+      bp_systolic_now:  sysN,
+      bp_diastolic_now: diaN,
+      bp_pulse_now:     pulN,
       height_cm_entity: get('s-height-entity'),
       height_cm:        parseInt(get('s-height-cm')) || this.config.height_cm,
     };
