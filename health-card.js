@@ -244,7 +244,7 @@ class HealthCard extends HTMLElement {
           font-size: 14px;
           color: var(--primary-text-color);
           padding: 16px;
-          overflow-x: hidden;
+          overflow-x: clip;
           box-sizing: border-box;
         }
         .metric-grid {
