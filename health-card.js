@@ -28,6 +28,7 @@ class HealthCard extends HTMLElement {
       bp_pulse_now:     config.bp_pulse_now     || '',
       bp_category:      config.bp_category      || '',
       bp_enabled:       config.bp_enabled !== false,
+      centile_enabled:  config.centile_enabled === true,
       steps_entity:    config.steps_entity    || '',
       calories_entity: config.calories_entity || '',
       steps_goal:      config.steps_goal      || 10000,
@@ -341,11 +342,13 @@ class HealthCard extends HTMLElement {
             <button class="nav-btn active" data-page="weight">&#9878; Waga</button>
             <button class="nav-btn" data-page="pressure">&#128138; Ci&#347;nienie</button>
             <button class="nav-btn" data-page="activity">&#127939; Aktywno&#347;&#263;</button>
+            <button class="nav-btn" data-page="centile">&#128200; Siatki</button>
             <button class="nav-btn" data-page="settings">&#9998; Wprowad&#378; dane</button>
           </div>
           <div id="content"><div class="loading">Ładowanie danych...</div></div>
           <div id="page-pressure" class="nav-page" style="display:none"></div>
           <div id="page-activity" class="nav-page" style="display:none"></div>
+          <div id="page-centile"  class="nav-page" style="display:none"></div>
           <div id="page-settings" class="nav-page" style="display:none"></div>
         </div>
       </ha-card>
@@ -543,15 +546,17 @@ class HealthCard extends HTMLElement {
       this._activityLoaded = true;
       this._loadActivityData(this._activityDays);
     }
+    if (page === 'centile') {
+      this._renderCentile();
+    }
     if (page === 'settings') {
       this._renderSettings();
     }
     var r = this.shadowRoot;
-    var pages = ['weight', 'pressure', 'activity', 'settings'];
     // Pokaż/ukryj odpowiednie strony
     var content = r.getElementById('content');
     if (content) content.style.display = page === 'weight' ? '' : 'none';
-    ['pressure', 'activity', 'settings'].forEach(function(p) {
+    ['pressure', 'activity', 'centile', 'settings'].forEach(function(p) {
       var el = r.getElementById('page-' + p);
       if (el) el.style.display = p === page ? 'block' : 'none';
     });
@@ -569,8 +574,16 @@ class HealthCard extends HTMLElement {
   _applyNavVisibility() {
     var nav = this.shadowRoot.getElementById('health-nav');
     if (!nav) return;
-    var btn = nav.querySelector('[data-page="pressure"]');
-    if (btn) btn.style.display = this.config.bp_enabled ? '' : 'none';
+    var bp  = nav.querySelector('[data-page="pressure"]');
+    var cen = nav.querySelector('[data-page="centile"]');
+    if (bp)  bp.style.display  = this.config.bp_enabled      ? '' : 'none';
+    if (cen) cen.style.display = this.config.centile_enabled ? '' : 'none';
+  }
+
+  _renderCentile() {
+    var page = this.shadowRoot.getElementById('page-centile');
+    if (!page) return;
+    page.innerHTML = '<div class="empty-page"><div class="icon">&#128200;</div><div class="title">Siatki centylowe</div><div>W budowie &mdash; skonfiguruj zawarto&#347;&#263;</div></div>';
   }
 
   _renderSettings() {
