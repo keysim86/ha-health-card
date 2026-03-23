@@ -718,9 +718,20 @@ class HealthCard extends HTMLElement {
         }
       });
 
-      // Usuń duplikaty (czujnik może wysłać kilka zdarzeń w krótkim czasie)
+      // Krok 1: usuń wpisy bliżej niż 2 minuty od poprzedniego
       measurements = measurements.filter(function(m, i) {
         return i === 0 || m.ts - measurements[i - 1].ts >= 120000;
+      });
+
+      // Krok 2: usuń duplikaty wartości — HA czasem ponownie odczytuje ostatni
+      // pomiar z urządzenia; jeśli te same sys/dia/pul pojawiły się w ciągu 6h, pomijamy
+      var lastSeen = new Map();
+      measurements = measurements.filter(function(m) {
+        var key = m.sys + '/' + m.dia + '/' + (m.pul != null ? m.pul : '');
+        var lastTs = lastSeen.get(key);
+        if (lastTs != null && m.ts - lastTs < 6 * 3600 * 1000) return false;
+        lastSeen.set(key, m.ts);
+        return true;
       });
 
       var sysList = measurements.map(function(m) { return m.sys; });
@@ -829,7 +840,7 @@ class HealthCard extends HTMLElement {
         + '<div class="footer">Data wygenerowania: '
         + now.toLocaleDateString('pl-PL') + ' '
         + now.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })
-        + ' | Dane pobrane z bazy Home Assistant (PostgreSQL) | Liczba pomiar\u00f3w: ' + measurements.length
+        + ' | Dane pobrane z Home Assistant | Liczba pomiar\u00f3w: ' + measurements.length
         + '</div>'
         + '</body></html>';
 
