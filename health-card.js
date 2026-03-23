@@ -2,9 +2,13 @@ class HealthCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this._loaded = false;
-    this._chart  = null;
-    this._daily  = [];
+    this._loaded          = false;
+    this._chart           = null;
+    this._daily           = [];
+    this._stepsChart      = null;
+    this._calChart        = null;
+    this._activityLoaded  = false;
+    this._activityDays    = 30;
   }
 
   setConfig(config) {
@@ -20,6 +24,10 @@ class HealthCard extends HTMLElement {
       bp_diastolic: config.bp_diastolic || 'sensor.bp_grzegorz_rozkurczowe',
       bp_pulse:     config.bp_pulse     || 'sensor.bp_grzegorz_puls',
       bp_category:  config.bp_category  || 'sensor.grzegorz_kategoria_cisnienia',
+      steps_entity:    config.steps_entity    || '',
+      calories_entity: config.calories_entity || '',
+      steps_goal:      config.steps_goal      || 10000,
+      calories_goal:   config.calories_goal   || 800,
       report_name:      config.report_name      || 'Imię Nazwisko',
       report_birthdate: config.report_birthdate || '',
       report_device:    config.report_device    || 'Ciśnieniomierz',
@@ -312,7 +320,7 @@ class HealthCard extends HTMLElement {
           </div>
           <div id="content"><div class="loading">Ładowanie danych...</div></div>
           <div id="page-pressure" class="nav-page" style="display:none"></div>
-          <div id="page-activity" class="nav-page" style="display:none"><div class="empty-page"><div class="icon">&#127939;</div><div class="title">Aktywno&#347;&#263;</div><div>W budowie &mdash; wkr&oacute;tce</div></div></div>
+          <div id="page-activity" class="nav-page" style="display:none"></div>
           <div id="page-settings" class="nav-page" style="display:none"><div class="empty-page"><div class="icon">&#9881;</div><div class="title">Konfiguracja</div><div>W budowie &mdash; wkr&oacute;tce</div></div></div>
         </div>
       </ha-card>
@@ -435,6 +443,10 @@ class HealthCard extends HTMLElement {
     if (page === 'pressure' && !this._pressureLoaded) {
       this._pressureLoaded = true;
       this._loadPressureData();
+    }
+    if (page === 'activity' && !this._activityLoaded) {
+      this._activityLoaded = true;
+      this._loadActivityData(this._activityDays);
     }
     var r = this.shadowRoot;
     var pages = ['weight', 'pressure', 'activity', 'settings'];
@@ -858,6 +870,197 @@ class HealthCard extends HTMLElement {
       console.error('[health-card] PDF error:', err);
       alert('B\u0142\u0105d generowania raportu: ' + err.message);
     });
+  }
+
+  _statToDailyMax(stats) {
+    var map = new Map();
+    for (var i = 0; i < stats.length; i++) {
+      var s   = stats[i];
+      var val = s.mean != null ? s.mean : s.state;
+      if (val == null || isNaN(val)) continue;
+      var day = this._day(this._ts(s));
+      var v   = parseFloat(val);
+      if (!map.has(day) || v > map.get(day)) map.set(day, v);
+    }
+    return Array.from(map.entries())
+      .sort(function(a, b) { return a[0].localeCompare(b[0]); })
+      .map(function(e) { return [e[0], Math.round(e[1])]; });
+  }
+
+  async _loadActivityData(days) {
+    var self = this;
+    var page = this.shadowRoot.getElementById('page-activity');
+    if (!page) return;
+    this._activityDays = days || 30;
+    page.innerHTML = '<div class="loading">&#321;adowanie aktywno&#347;ci...</div>';
+
+    if (!this.config.steps_entity && !this.config.calories_entity) {
+      page.innerHTML = '<div class="empty-page"><div class="icon">&#127939;</div><div class="title">Brak konfiguracji</div>'
+        + '<div>Ustaw <code>steps_entity</code> lub <code>calories_entity</code> w konfiguracji karty</div></div>';
+      return;
+    }
+
+    try {
+      var now   = new Date();
+      var start = new Date(now);
+      start.setDate(start.getDate() - days);
+
+      var fetches = [
+        this.config.steps_entity    ? this._fetchStatsByEntity(this.config.steps_entity,    start, now, 'hour') : Promise.resolve({}),
+        this.config.calories_entity ? this._fetchStatsByEntity(this.config.calories_entity, start, now, 'hour') : Promise.resolve({}),
+      ];
+      var results  = await Promise.all(fetches);
+      var stepsData = this._statToDailyMax(results[0][this.config.steps_entity]    || []);
+      var calData   = this._statToDailyMax(results[1][this.config.calories_entity] || []);
+
+      var stepsState = this.config.steps_entity    ? this._hass.states[this.config.steps_entity]    : null;
+      var calState   = this.config.calories_entity ? this._hass.states[this.config.calories_entity] : null;
+      var stepsNow   = stepsState ? Math.round(parseFloat(stepsState.state)) : null;
+      var calNow     = calState   ? Math.round(parseFloat(calState.state))   : null;
+
+      var stepsVals = stepsData.map(function(d) { return d[1]; });
+      var calVals   = calData.map(function(d) { return d[1]; });
+
+      var avgFn = function(a) { return a.length ? Math.round(a.reduce(function(x, y) { return x + y; }, 0) / a.length) : 0; };
+      var maxFn = function(a) { return a.length ? Math.max.apply(null, a) : 0; };
+
+      var sg = self.config.steps_goal;
+      var cg = self.config.calories_goal;
+
+      var stepsAvg   = avgFn(stepsVals);
+      var stepsMax   = maxFn(stepsVals);
+      var calAvg     = avgFn(calVals);
+      var calMax     = maxFn(calVals);
+
+      var stepsPct   = stepsNow != null ? Math.min(100, Math.round(stepsNow / sg * 100)) : 0;
+      var calPct     = calNow   != null ? Math.min(100, Math.round(calNow   / cg * 100)) : 0;
+      var stepsColor = stepsNow != null ? (stepsNow >= sg ? '#1D9E75' : stepsNow >= sg * 0.5 ? '#BA7517' : '#E24B4A') : '#1D9E75';
+      var calColor   = calNow   != null ? (calNow   >= cg ? '#1D9E75' : calNow   >= cg * 0.5 ? '#BA7517' : '#E24B4A') : '#1D9E75';
+
+      var rangeTabs = [7, 14, 30, 90].map(function(d) {
+        return '<div class="tab' + (d === days ? ' active' : '') + '" '
+          + 'onclick="this.getRootNode().host._loadActivityData(' + d + ')">' + d + ' dni</div>';
+      }).join('');
+
+      var metricsHtml = '';
+      if (stepsNow != null) {
+        metricsHtml += '<div class="metric">'
+          + '<div class="metric-label">Kroki dzi&#347;</div>'
+          + '<div class="metric-value" style="color:' + stepsColor + '">' + stepsNow.toLocaleString('pl-PL') + '</div>'
+          + '<div class="prog-bg" style="margin-top:6px"><div class="prog-fill" style="width:' + stepsPct + '%;background:' + stepsColor + '"></div></div>'
+          + '<div class="metric-sub">' + stepsPct + '% celu (' + sg.toLocaleString('pl-PL') + ')</div>'
+          + '</div>';
+      }
+      if (calNow != null) {
+        metricsHtml += '<div class="metric">'
+          + '<div class="metric-label">Kalorie dzi&#347;</div>'
+          + '<div class="metric-value" style="color:' + calColor + '">' + calNow.toLocaleString('pl-PL') + ' kcal</div>'
+          + '<div class="prog-bg" style="margin-top:6px"><div class="prog-fill" style="width:' + calPct + '%;background:' + calColor + '"></div></div>'
+          + '<div class="metric-sub">' + calPct + '% celu (' + cg.toLocaleString('pl-PL') + ' kcal)</div>'
+          + '</div>';
+      }
+      if (stepsVals.length) {
+        metricsHtml += '<div class="metric">'
+          + '<div class="metric-label">&#216; Kroki (' + days + ' dni)</div>'
+          + '<div class="metric-value">' + stepsAvg.toLocaleString('pl-PL') + '</div>'
+          + '<div class="metric-sub">Max: ' + stepsMax.toLocaleString('pl-PL') + '</div>'
+          + '</div>';
+      }
+      if (calVals.length) {
+        metricsHtml += '<div class="metric">'
+          + '<div class="metric-label">&#216; Kalorie (' + days + ' dni)</div>'
+          + '<div class="metric-value">' + calAvg.toLocaleString('pl-PL') + ' kcal</div>'
+          + '<div class="metric-sub">Max: ' + calMax.toLocaleString('pl-PL') + ' kcal</div>'
+          + '</div>';
+      }
+
+      page.innerHTML =
+        '<div class="metric-grid">' + metricsHtml + '</div>'
+        + '<div class="tabs">' + rangeTabs + '</div>'
+        + '<div class="legend">'
+        + '<span><span class="ldot" style="background:#1D9E75"></span>&#8805; cel</span>'
+        + '<span><span class="ldot" style="background:#BA7517"></span>&#8805; 50% celu</span>'
+        + '<span><span class="ldot" style="background:#E24B4A"></span>&lt; 50% celu</span>'
+        + '</div>'
+        + (stepsData.length ? '<h3>&#128099; Kroki dzienne</h3><div class="chart-wrap" style="height:200px"><canvas id="stepsChart"></canvas></div>' : '')
+        + (calData.length   ? '<h3>&#128293; Kalorie dzienne</h3><div class="chart-wrap" style="height:200px"><canvas id="calChart"></canvas></div>' : '');
+
+      self._drawActivityCharts(stepsData, calData);
+
+    } catch(err) {
+      page.innerHTML = '<div style="color:#E24B4A;padding:20px">B&#322;&#261;d: ' + err.message + '</div>';
+    }
+  }
+
+  _drawActivityCharts(stepsData, calData) {
+    var self = this;
+    var draw = function() {
+      if (self._stepsChart) { self._stepsChart.destroy(); self._stepsChart = null; }
+      if (self._calChart)   { self._calChart.destroy();   self._calChart   = null; }
+
+      var sg = self.config.steps_goal;
+      var cg = self.config.calories_goal;
+
+      function fmtLabel(dateStr) {
+        var d = new Date(dateStr);
+        return (d.getDate()) + '.' + (d.getMonth() + 1);
+      }
+
+      function makeBarChart(canvasId, data, goal, tooltipSuffix) {
+        var canvas = self.shadowRoot.getElementById(canvasId);
+        if (!canvas || !data.length) return null;
+        var labels = data.map(function(d) { return fmtLabel(d[0]); });
+        var vals   = data.map(function(d) { return d[1]; });
+        var colors = vals.map(function(v) {
+          return v >= goal ? '#1D9E75' : v >= goal * 0.5 ? '#BA7517' : '#E24B4A';
+        });
+        return new window.Chart(canvas, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{ data: vals, backgroundColor: colors, borderRadius: 3, borderSkipped: false }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) { return ' ' + ctx.parsed.y.toLocaleString('pl-PL') + tooltipSuffix; }
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: { maxTicksLimit: 12, color: 'var(--secondary-text-color, #888)', font: { size: 10 }, maxRotation: 0 },
+                grid: { display: false },
+              },
+              y: {
+                ticks: {
+                  color: 'var(--secondary-text-color, #888)',
+                  font: { size: 10 },
+                  callback: function(v) { return v >= 1000 ? (v / 1000).toFixed(1).replace('.0', '') + 'k' : v; }
+                },
+                grid: { color: 'rgba(128,128,128,0.1)' },
+              }
+            }
+          }
+        });
+      }
+
+      self._stepsChart = makeBarChart('stepsChart', stepsData, sg, ' krok\u00f3w');
+      self._calChart   = makeBarChart('calChart',   calData,   cg, ' kcal');
+    };
+
+    if (window.Chart) {
+      draw();
+    } else {
+      var s  = document.createElement('script');
+      s.src  = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+      s.onload = draw;
+      document.head.appendChild(s);
+    }
   }
 
   _switchTab(tab) {
