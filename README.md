@@ -8,7 +8,7 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://github.com/keysim86/ha-health-card)
 [![HA](https://img.shields.io/badge/Home%20Assistant-2023.0%2B-blue?style=flat-square)](https://www.home-assistant.io/)
 
-> Karta Lovelace do monitorowania zdrowia — waga, ciśnienie krwi, aktywność. Dane z Home Assistant, raporty PDF.
+> Karta Lovelace do monitorowania zdrowia — waga, ciśnienie krwi, aktywność, siatki centylowe. Dane z Home Assistant, raporty PDF.
 
 ---
 
@@ -19,7 +19,10 @@
 | ⚖ Waga | Waga ciała, BMI, bilanse bieżące, postęp do celów, wykresy historii i BMI |
 | 💊 Ciśnienie | Skurczowe, rozkurczowe, puls, statystyki, wykres 90 dni, raport PDF |
 | 🏃 Aktywność | Kroki i kalorie — dzienne wykresy słupkowe, cel dzienny, statystyki |
+| 📈 Siatki centylowe | BMI i wzrost dziecka na tle norm WHO 2007, strefy centylowe |
 | ✏ Wprowadź dane | Ręczny zapis ciśnienia i wzrostu do `input_number` |
+
+Zakładki **Ciśnienie** i **Siatki centylowe** można włączać/wyłączać przez YAML.
 
 ---
 
