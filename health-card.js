@@ -36,8 +36,12 @@ class HealthCard extends HTMLElement {
       report_birthdate: config.report_birthdate || '',
       report_device:    config.report_device    || '',
       bp_exclude_timestamps: Array.isArray(config.bp_exclude_timestamps) ? config.bp_exclude_timestamps : [],
-
     };
+
+    // Resetuj flagi cache — nowa konfiguracja wymaga przeładowania danych
+    this._pressureLoaded = false;
+    this._activityLoaded = false;
+    this._loaded         = false;
   }
 
   set hass(hass) {
