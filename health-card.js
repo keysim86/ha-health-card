@@ -85,9 +85,9 @@ class HealthCard extends HTMLElement {
     if (bmi < 18.5) return { label: 'Niedowaga',    color: '#3B8BD4' };
     if (bmi < 25.0) return { label: 'Norma',         color: '#1D9E75' };
     if (bmi < 30.0) return { label: 'Nadwaga',       color: '#BA7517' };
-    if (bmi < 35.0) return { label: 'Otyłość I°',    color: '#E24B4A' };
-    if (bmi < 40.0) return { label: 'Otyłość I°I',   color: '#A32D2D' };
-    return           { label: 'Otyłość I°II', color: '#701515' };
+    if (bmi < 35.0) return { label: 'Otyłość I°',   color: '#E24B4A' };
+    if (bmi < 40.0) return { label: 'Otyłość II°',  color: '#A32D2D' };
+    return           { label: 'Otyłość III°', color: '#701515' };
   }
 
   _calcMonthly(daily) {
@@ -661,165 +661,191 @@ class HealthCard extends HTMLElement {
   }
 
   _generateBpPdf() {
-    var self    = this;
-    var select  = this.shadowRoot.getElementById('report-period-select');
-    var days    = select ? parseInt(select.value) : 30;
-    var now     = new Date();
-    var start   = new Date(now);
+    var self   = this;
+    var select = this.shadowRoot.getElementById('report-period-select');
+    var days   = select ? parseInt(select.value) : 30;
+    var now    = new Date();
+    var start  = new Date(now);
     start.setDate(start.getDate() - days);
     var startStr = start.toLocaleDateString('pl-PL');
     var endStr   = now.toLocaleDateString('pl-PL');
 
-    // Pobierz dane z ostatnich X dni
-    var sysState = this._hass.states[this.config.bp_systolic];
-    var diaState = this._hass.states[this.config.bp_diastolic];
-    var pulState = this._hass.states[this.config.bp_pulse];
-    var catState = this.config.bp_category ? this._hass.states[this.config.bp_category] : null;
+    // Pobierz rzeczywiste pomiary z historii stanów (nie ze statystyk)
+    this._hass.connection.sendMessagePromise({
+      type:                    'history/history_during_period',
+      start_time:              start.toISOString(),
+      end_time:                now.toISOString(),
+      entity_ids:              [this.config.bp_systolic, this.config.bp_diastolic, this.config.bp_pulse],
+      no_attributes:           true,
+      significant_changes_only: false,
+    }).then(function(histData) {
 
-    // Zbierz pomiary z historii — użyj zapamiętanych danych
-    var self = this;
-    Promise.all([
-      this._fetchStatsByEntity(this.config.bp_systolic,  start, now, '5minute'),
-      this._fetchStatsByEntity(this.config.bp_diastolic, start, now, '5minute'),
-      this._fetchStatsByEntity(this.config.bp_pulse,     start, now, '5minute'),
-    ]).then(function(results) {
-      var sysRaw = results[0][self.config.bp_systolic]  || [];
-      var diaRaw = results[1][self.config.bp_diastolic] || [];
-      var pulRaw = results[2][self.config.bp_pulse]     || [];
+      function parseHist(entries) {
+        return (entries || [])
+          .filter(function(e) { return e.s && !isNaN(parseFloat(e.s)); })
+          .map(function(e) {
+            var ts = e.lc != null ? Math.round(e.lc * 1000)
+                   : e.lu != null ? Math.round(e.lu * 1000) : 0;
+            return { ts: ts, val: Math.round(parseFloat(e.s)) };
+          })
+          .filter(function(e) { return e.ts > 0; })
+          .sort(function(a, b) { return a.ts - b.ts; });
+      }
 
-      // Zbierz unikalne timestampy i dopasuj wartości
-      var tsMap = new Map();
-      sysRaw.forEach(function(s) {
-        var ts  = self._ts(s);
-        var day = self._day(ts);
-        var val = s.mean != null ? s.mean : s.state;
-        if (!isNaN(val)) {
-          if (!tsMap.has(ts)) tsMap.set(ts, { ts: ts, day: day, sys: null, dia: null, pul: null });
-          tsMap.get(ts).sys = Math.round(val);
+      var sysHist = parseHist(histData[self.config.bp_systolic]);
+      var diaHist = parseHist(histData[self.config.bp_diastolic]);
+      var pulHist = parseHist(histData[self.config.bp_pulse]);
+
+      // Dopasuj sys/dia/pul do tego samego pomiaru (okno ±60 s)
+      var WINDOW = 60000;
+      var measurements = [];
+      sysHist.forEach(function(sys) {
+        var dia = diaHist.reduce(function(b, d) {
+          if (!b) return d;
+          return Math.abs(d.ts - sys.ts) < Math.abs(b.ts - sys.ts) ? d : b;
+        }, null);
+        var pul = pulHist.reduce(function(b, p) {
+          if (!b) return p;
+          return Math.abs(p.ts - sys.ts) < Math.abs(b.ts - sys.ts) ? p : b;
+        }, null);
+        if (dia && Math.abs(dia.ts - sys.ts) <= WINDOW) {
+          measurements.push({
+            ts:  sys.ts,
+            sys: sys.val,
+            dia: dia.val,
+            pul: (pul && Math.abs(pul.ts - sys.ts) <= WINDOW) ? pul.val : null,
+          });
         }
       });
-      diaRaw.forEach(function(s) {
-        var ts  = self._ts(s);
-        var val = s.mean != null ? s.mean : s.state;
-        if (!isNaN(val) && tsMap.has(ts)) tsMap.get(ts).dia = Math.round(val);
-      });
-      pulRaw.forEach(function(s) {
-        var ts  = self._ts(s);
-        var val = s.mean != null ? s.mean : s.state;
-        if (!isNaN(val) && tsMap.has(ts)) tsMap.get(ts).pul = Math.round(val);
+
+      // Usuń duplikaty (czujnik może wysłać kilka zdarzeń w krótkim czasie)
+      measurements = measurements.filter(function(m, i) {
+        return i === 0 || m.ts - measurements[i - 1].ts >= 120000;
       });
 
-      var measurements = Array.from(tsMap.values())
-        .filter(function(m){ return m.sys && m.dia; })
-        .sort(function(a,b){ return a.ts - b.ts; });
+      var sysList = measurements.map(function(m) { return m.sys; });
+      var diaList = measurements.map(function(m) { return m.dia; });
+      var pulList = measurements.filter(function(m) { return m.pul != null; }).map(function(m) { return m.pul; });
 
-      // Statystyki
-      var sysList = measurements.map(function(m){ return m.sys; });
-      var diaList = measurements.map(function(m){ return m.dia; });
-      var pulList = measurements.filter(function(m){ return m.pul; }).map(function(m){ return m.pul; });
-      var avg = function(a){ return a.length ? Math.round(a.reduce(function(x,y){return x+y;},0)/a.length*10)/10 : '—'; };
-      var mn  = function(a){ return a.length ? Math.min.apply(null,a) : '—'; };
-      var mx  = function(a){ return a.length ? Math.max.apply(null,a) : '—'; };
+      var avg = function(a) {
+        return a.length ? Math.round(a.reduce(function(x, y) { return x + y; }, 0) / a.length * 10) / 10 : '\u2014';
+      };
+      var mn = function(a) { return a.length ? Math.min.apply(null, a) : '\u2014'; };
+      var mx = function(a) { return a.length ? Math.max.apply(null, a) : '\u2014'; };
 
-      // Kategoria wg WHO
       var catLabel = function(s, d) {
         if (s < 120 && d < 80)  return 'Optymalne';
-        if (s < 130 && d < 85)  return 'Prawid&#322;owe';
-        if (s < 140 && d < 90)  return 'Wysokie prawid&#322;owe';
-        if (s < 160 && d < 100) return 'Nadci&#347;nienie I&#176;';
-        if (s < 180 && d < 110) return 'Nadci&#347;nienie II&#176;';
-        return 'Nadci&#347;nienie III&#176;';
+        if (s < 130 && d < 85)  return 'Prawid\u0142owe';
+        if (s < 140 && d < 90)  return 'Wysokie prawid\u0142owe';
+        if (s < 160 && d < 100) return 'Nadci\u015bnienie I\u00b0';
+        if (s < 180 && d < 110) return 'Nadci\u015bnienie II\u00b0';
+        return 'Nadci\u015bnienie III\u00b0';
       };
 
-      // Pora dnia
       var timeOfDay = function(ts) {
         var h = new Date(ts).getHours();
         if (h >= 5  && h < 12) return 'Rano';
-        if (h >= 12 && h < 17) return 'Po&#322;udnie';
+        if (h >= 12 && h < 17) return 'Po\u0142udnie';
         if (h >= 17 && h < 21) return 'Wieczór';
         return 'Noc';
       };
 
-      // Wiek z daty urodzenia
       var ageStr = '';
       if (self.config.report_birthdate) {
-        var bd   = new Date(self.config.report_birthdate);
-        var age  = Math.floor((now - bd) / (365.25 * 24 * 3600 * 1000));
-        var bdPl = bd.toLocaleDateString('pl-PL');
-        ageStr   = bdPl + ' (wiek: ' + age + ' lat)';
+        var bd  = new Date(self.config.report_birthdate);
+        var age = Math.floor((now - bd) / (365.25 * 24 * 3600 * 1000));
+        ageStr  = bd.toLocaleDateString('pl-PL') + '\u00a0\u00a0(wiek: ' + age + ' lat)';
       }
 
-      // Oceń ogólną klasyfikację
       var sysAvg = avg(sysList);
       var diaAvg = avg(diaList);
       var pulAvg = avg(pulList);
-      var overallCat = (typeof sysAvg === 'number' && typeof diaAvg === 'number') ? catLabel(sysAvg, diaAvg) : '—';
-      var overallPul = (typeof pulAvg === 'number') ? (pulAvg >= 60 && pulAvg <= 100 ? 'Prawid&#322;owy' : 'Nieprawid&#322;owy') : '—';
+      var overallCat = (typeof sysAvg === 'number' && typeof diaAvg === 'number')
+        ? catLabel(sysAvg, diaAvg) : '\u2014';
+      var overallPul = (typeof pulAvg === 'number')
+        ? (pulAvg >= 60 && pulAvg <= 100 ? 'Prawid\u0142owy' : 'Nieprawid\u0142owy') : '\u2014';
 
-      // Wygeneruj wiersze tabeli
       var rows = measurements.map(function(m) {
-        var d   = new Date(m.ts);
-        var cat = catLabel(m.sys, m.dia || 0);
+        var d = new Date(m.ts);
         return '<tr>'
           + '<td>' + d.toLocaleDateString('pl-PL') + '</td>'
-          + '<td>' + d.toLocaleTimeString('pl-PL', {hour:'2-digit',minute:'2-digit'}) + '</td>'
+          + '<td>' + d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }) + '</td>'
           + '<td>' + timeOfDay(m.ts) + '</td>'
-          + '<td style="color:' + (m.sys >= 140 ? '#c0392b' : m.sys >= 130 ? '#e67e22' : '#27ae60') + ';font-weight:500">' + m.sys + '</td>'
-          + '<td style="color:' + (m.dia >= 90  ? '#c0392b' : m.dia >= 80  ? '#e67e22' : '#27ae60') + ';font-weight:500">' + (m.dia || '—') + '</td>'
-          + '<td>' + (m.pul || '—') + '</td>'
-          + '<td>' + cat + '</td>'
+          + '<td>' + m.sys + '</td>'
+          + '<td>' + (m.dia != null ? m.dia : '\u2014') + '</td>'
+          + '<td>' + (m.pul != null ? m.pul : '\u2014') + '</td>'
+          + '<td>' + catLabel(m.sys, m.dia || 0) + '</td>'
           + '</tr>';
       }).join('');
 
-      // HTML raportu
+      var weightState = self._hass.states[self.config.entity_id];
+      var weightStr   = weightState ? parseFloat(weightState.state).toFixed(1) : '\u2014';
+
       var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8">'
-        + '<title>Raport ci&#347;nienia — ' + self.config.report_name + '</title>'
+        + '<title>Raport ci\u015bnienia \u2014 ' + self.config.report_name + '</title>'
         + '<style>'
-        + 'body{font-family:Arial,sans-serif;font-size:13px;color:#333;margin:0;padding:20px;}'
-        + 'h1{text-align:center;font-size:16px;text-transform:uppercase;letter-spacing:1px;margin-bottom:20px;}'
+        + 'body{font-family:Arial,sans-serif;font-size:13px;color:#333;margin:0;padding:24px 32px;}'
+        + 'h1{text-align:center;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:22px;}'
         + '.info-table{width:100%;border-collapse:collapse;margin-bottom:24px;}'
         + '.info-table td{padding:4px 8px;}'
-        + '.info-table td:first-child{font-weight:700;width:160px;}'
-        + 'h2{font-size:13px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #1a5276;color:#1a5276;padding-bottom:4px;margin:20px 0 10px;}'
-        + 'table{width:100%;border-collapse:collapse;margin-bottom:20px;}'
-        + 'thead tr{background:#1a5276;color:white;}'
-        + 'thead th{padding:8px 6px;text-align:center;font-size:12px;}'
-        + 'tbody tr:nth-child(even){background:#f2f9ff;}'
-        + 'tbody td{padding:6px 8px;text-align:center;border-bottom:1px solid #dce9f5;}'
-        + '.stat-table thead tr{background:#2e86c1;}'
-        + '.footer{font-size:10px;color:#888;text-align:center;margin-top:30px;border-top:1px solid #eee;padding-top:10px;}'
+        + '.info-table td:first-child{font-weight:700;width:170px;}'
+        + 'h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;'
+        +    'color:#1a5276;border-bottom:2px solid #1a5276;padding-bottom:3px;margin:20px 0 10px;}'
+        + '.data-table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px;}'
+        + '.data-table thead th{padding:8px 6px;text-align:center;font-size:11px;font-weight:600;'
+        +    'color:#555;background:#f0f0f0;border:1px solid #ddd;}'
+        + '.data-table tbody td{padding:6px 8px;text-align:center;border:1px solid #e0e0e0;color:#333;}'
+        + '.data-table tbody tr:nth-child(even){background:#f7f7f7;}'
+        + '.stat-table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px;}'
+        + '.stat-table thead th{padding:8px 10px;text-align:center;background:#2e86c1;color:#fff;font-size:12px;}'
+        + '.stat-table tbody td{padding:6px 10px;text-align:center;border-bottom:1px solid #dce9f5;}'
+        + '.stat-table tbody tr:nth-child(odd){background:#eaf4fb;}'
+        + '.footer{font-size:10px;color:#888;text-align:center;margin-top:30px;'
+        +    'border-top:1px solid #eee;padding-top:8px;font-style:italic;}'
         + '@media print{body{padding:10px;}}'
         + '</style></head><body>'
-        + '<h1>Raport pomiar&oacute;w ci&scaron;nienia t&ecirc;tniczego</h1>'
+        + '<h1>Raport pomiar\u00f3w ci\u015bnienia t\u0119tniczego</h1>'
         + '<table class="info-table"><tbody>'
-        + '<tr><td>Imi&#281; i nazwisko:</td><td>' + self.config.report_name + '</td></tr>'
+        + '<tr><td>Imi\u0119 i nazwisko:</td><td>' + self.config.report_name + '</td></tr>'
         + (ageStr ? '<tr><td>Data urodzenia:</td><td>' + ageStr + '</td></tr>' : '')
-        + '<tr><td>Wzrost / Waga:</td><td>' + self._heightCm() + ' cm / ' + (self._hass.states[self.config.entity_id] ? parseFloat(self._hass.states[self.config.entity_id].state).toFixed(1) : '—') + ' kg</td></tr>'
-        + '<tr><td>Okres pomiar&oacute;w:</td><td>' + startStr + ' &mdash; ' + endStr + '</td></tr>'
-        + '<tr><td>Urz&#261;dzenie:</td><td>' + self.config.report_device + '</td></tr>'
+        + '<tr><td>Wzrost / Waga:</td><td>' + self._heightCm() + ' cm / ' + weightStr + ' kg</td></tr>'
+        + '<tr><td>Okres pomiar\u00f3w:</td><td>' + startStr + ' \u2014 ' + endStr + '</td></tr>'
+        + '<tr><td>Urz\u0105dzenie:</td><td>' + self.config.report_device + '</td></tr>'
         + '</tbody></table>'
-        + '<h2>Wyniki pomiar&oacute;w</h2>'
-        + '<table><thead><tr>'
+        + '<h2>Wyniki pomiar\u00f3w</h2>'
+        + '<table class="data-table"><thead><tr>'
         + '<th>Data</th><th>Czas</th><th>Pora</th>'
         + '<th>Skurczowe<br>(mmHg)</th><th>Rozkurczowe<br>(mmHg)</th>'
         + '<th>Puls<br>(bpm)</th><th>Kategoria</th>'
         + '</tr></thead><tbody>' + rows + '</tbody></table>'
         + '<h2>Podsumowanie statystyczne</h2>'
-        + '<table class="stat-table"><thead><tr><th>Parametr</th><th>&#346;rednia</th><th>Min</th><th>Max</th><th>Ocena</th></tr></thead>'
-        + '<tbody>'
+        + '<table class="stat-table"><thead><tr>'
+        + '<th>Parametr</th><th>\u015arednia</th><th>Min</th><th>Max</th><th>Ocena</th>'
+        + '</tr></thead><tbody>'
         + '<tr><td>Skurczowe (mmHg)</td><td>' + avg(sysList) + '</td><td>' + mn(sysList) + '</td><td>' + mx(sysList) + '</td><td rowspan="2">' + overallCat + '</td></tr>'
         + '<tr><td>Rozkurczowe (mmHg)</td><td>' + avg(diaList) + '</td><td>' + mn(diaList) + '</td><td>' + mx(diaList) + '</td></tr>'
         + '<tr><td>Puls (bpm)</td><td>' + avg(pulList) + '</td><td>' + mn(pulList) + '</td><td>' + mx(pulList) + '</td><td>' + overallPul + '</td></tr>'
         + '</tbody></table>'
-        + '<div class="footer">Data wygenerowania: ' + now.toLocaleDateString('pl-PL') + ' ' + now.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})
-        + ' | Dane pobrane z Home Assistant | Liczba pomiar&oacute;w: ' + measurements.length + '</div>'
+        + '<div class="footer">Data wygenerowania: '
+        + now.toLocaleDateString('pl-PL') + ' '
+        + now.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })
+        + ' | Dane pobrane z bazy Home Assistant (PostgreSQL) | Liczba pomiar\u00f3w: ' + measurements.length
+        + '</div>'
         + '</body></html>';
 
-      // Otwórz w nowym oknie i wywołaj drukowanie
-      var win = window.open('', '_blank');
-      win.document.write(html);
-      win.document.close();
-      win.onload = function() { win.print(); };
+      // Otwórz jako Blob URL — gwarantuje prawidłowe kodowanie UTF-8
+      var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      var url  = URL.createObjectURL(blob);
+      var win  = window.open(url, '_blank');
+      if (win) {
+        win.addEventListener('load', function() {
+          URL.revokeObjectURL(url);
+          win.print();
+        });
+      }
+    }).catch(function(err) {
+      console.error('[health-card] PDF error:', err);
+      alert('B\u0142\u0105d generowania raportu: ' + err.message);
     });
   }
 
