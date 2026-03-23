@@ -30,7 +30,7 @@ class HealthCard extends HTMLElement {
       bp_category:      config.bp_category      || '',
       bp_enabled:       config.bp_enabled !== false,
       centile_enabled:    config.centile_enabled   === true,
-      centile_birthdate:  config.centile_birthdate  || '',
+      centile_birthdate:  config.centile_birthdate  || config.report_birthdate || '',
       centile_gender:     config.centile_gender     || 'female',
       steps_entity:    config.steps_entity    || '',
       calories_entity: config.calories_entity || '',
