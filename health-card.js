@@ -29,7 +29,9 @@ class HealthCard extends HTMLElement {
       bp_pulse_now:     config.bp_pulse_now     || '',
       bp_category:      config.bp_category      || '',
       bp_enabled:       config.bp_enabled !== false,
-      centile_enabled:  config.centile_enabled === true,
+      centile_enabled:    config.centile_enabled   === true,
+      centile_birthdate:  config.centile_birthdate  || '',
+      centile_gender:     config.centile_gender     || 'female',
       steps_entity:    config.steps_entity    || '',
       calories_entity: config.calories_entity || '',
       steps_goal:      config.steps_goal      || 10000,
@@ -225,6 +227,7 @@ class HealthCard extends HTMLElement {
 
       this._daily = daily;
       this._updateUI(daily);
+      if (this._centilePending) { this._centilePending = false; this._renderCentile(); }
 
     } catch(err) {
       content.innerHTML = '<div style="color:#E24B4A;padding:20px;text-align:center">Błąd: ' + err.message + '</div>';
@@ -581,9 +584,247 @@ class HealthCard extends HTMLElement {
   }
 
   _renderCentile() {
+    var self = this;
     var page = this.shadowRoot.getElementById('page-centile');
     if (!page) return;
-    page.innerHTML = '<div class="empty-page"><div class="icon">&#128200;</div><div class="title">Siatki centylowe</div><div>W budowie &mdash; skonfiguruj zawarto&#347;&#263;</div></div>';
+
+    if (!this.config.centile_birthdate) {
+      page.innerHTML = '<div class="empty-page"><div class="icon">&#128200;</div><div class="title">Siatki centylowe</div>'
+        + '<div>Ustaw <code>centile_birthdate</code> i <code>centile_gender</code> w YAML</div></div>';
+      return;
+    }
+
+    if (!this._daily || !this._daily.length) {
+      page.innerHTML = '<div class="loading">&#321;adowanie danych...</div>';
+      this._centilePending = true;
+      return;
+    }
+
+    var gender    = this.config.centile_gender === 'male' ? 'male' : 'female';
+    var birthDate = new Date(this.config.centile_birthdate);
+    var h         = this._heightCm();
+
+    // Oblicz BMI dla każdego pomiaru wagi, przypisując wiek dziecka w tej dacie
+    var bmiData = this._daily.map(function(d) {
+      var dt       = new Date(d[0]);
+      var ageYears = (dt - birthDate) / (365.25 * 24 * 3600 * 1000);
+      var bmi      = h > 0 ? Math.round(d[1] / Math.pow(h / 100, 2) * 10) / 10 : null;
+      return { date: d[0], age: ageYears, weight: d[1], bmi: bmi };
+    }).filter(function(d) { return d.bmi !== null && d.age >= 2 && d.age <= 20; });
+
+    if (!bmiData.length) {
+      page.innerHTML = '<div class="empty-page"><div class="icon">&#128200;</div><div class="title">Brak danych</div>'
+        + '<div>Sprawd&#378; dat&#281; urodzenia i encj&#281; wagi</div></div>';
+      return;
+    }
+
+    var current = bmiData[bmiData.length - 1];
+    var cb      = self._getCentileBounds(current.age, gender);
+
+    var ageYF    = Math.floor(current.age);
+    var ageMF    = Math.floor((current.age - ageYF) * 12);
+    var ageStr   = ageYF + ' lat' + (ageYF === 1 ? '' : '') + (ageMF > 0 ? ' ' + ageMF + ' mies.' : '');
+    var genderLbl = gender === 'male' ? 'Ch&#322;opiec' : 'Dziewczynka';
+
+    var bmiCat = current.bmi < cb.bP5  ? { label: 'Niedowaga',  color: '#9B59B6' }
+               : current.bmi < cb.bP85 ? { label: 'Norma',      color: '#1D9E75' }
+               : current.bmi < cb.bP95 ? { label: 'Nadwaga',    color: '#BA7517' }
+               :                         { label: 'Oty&#322;o&#347;&#263;', color: '#E24B4A' };
+
+    var hCat = h < cb.hP10 ? { label: 'Niski',              color: '#E24B4A' }
+             : h < cb.hP90 ? { label: '\u015arednio-Wysoki', color: '#1D9E75' }
+             :                { label: 'Bardzo wysoki',      color: '#3B8BD4' };
+
+    page.innerHTML =
+      '<div class="metric-grid" style="margin-bottom:16px">'
+      + '<div class="metric"><div class="metric-label">Wiek</div><div class="metric-value">' + ageStr + '</div><div class="metric-sub">' + genderLbl + '</div></div>'
+      + '<div class="metric"><div class="metric-label">BMI</div><div class="metric-value" style="color:' + bmiCat.color + '">' + current.bmi + '</div><div class="metric-sub" style="color:' + bmiCat.color + '">' + bmiCat.label + '</div></div>'
+      + '<div class="metric"><div class="metric-label">Wzrost</div><div class="metric-value">' + h + ' cm</div><div class="metric-sub" style="color:' + hCat.color + '">' + hCat.label + '</div></div>'
+      + '<div class="metric"><div class="metric-label">Waga</div><div class="metric-value">' + current.weight.toFixed(1) + ' kg</div><div class="metric-sub">' + current.date + '</div></div>'
+      + '</div>'
+      + '<h3>&#128202; BMI na tle siatki centylowej</h3>'
+      + '<div class="legend">'
+      + '<span><span class="ldot" style="background:rgba(155,89,182,0.6)"></span>Niedowaga (&lt;P5)</span>'
+      + '<span><span class="ldot" style="background:rgba(29,158,117,0.6)"></span>Norma (P5\u2013P85)</span>'
+      + '<span><span class="ldot" style="background:rgba(186,117,23,0.6)"></span>Nadwaga (P85\u2013P95)</span>'
+      + '<span><span class="ldot" style="background:rgba(226,75,74,0.6)"></span>Oty\u0142o\u015b\u0107 (&gt;P95)</span>'
+      + '</div>'
+      + '<div class="chart-wrap" style="height:280px"><canvas id="centileBmiChart"></canvas></div>'
+      + '<h3>&#128207; Wzrost \u2014 pozycja centylowa</h3>'
+      + '<div class="legend">'
+      + '<span><span class="ldot" style="background:rgba(226,75,74,0.6)"></span>Niski (&lt;P10)</span>'
+      + '<span><span class="ldot" style="background:rgba(29,158,117,0.6)"></span>\u015arednio-Wysoki (P10\u2013P90)</span>'
+      + '<span><span class="ldot" style="background:rgba(59,139,212,0.6)"></span>Bardzo wysoki (&gt;P90)</span>'
+      + '</div>'
+      + '<div class="chart-wrap" style="height:220px"><canvas id="centileHgtChart"></canvas></div>';
+
+    var draw = function() {
+      self._drawCentileBmiChart(bmiData, gender);
+      self._drawCentileHgtChart(current.age, h, gender);
+    };
+    if (window.Chart) draw(); else setTimeout(draw, 500);
+  }
+
+  _getCentileBounds(ageDecimal, gender) {
+    // WHO 2007 Growth Reference — format: [hP10, hP50, hP90, bmiP5, bmiP85, bmiP95]
+    var T = {
+      male: {
+         2: [ 82.5,  87.1,  91.8, 13.8, 17.1, 18.3],
+         3: [ 89.0,  94.2,  99.4, 13.5, 16.7, 17.9],
+         4: [ 95.0, 100.3, 105.7, 13.2, 16.3, 17.6],
+         5: [105.8, 110.0, 115.4, 13.0, 15.7, 16.9],
+         6: [111.5, 116.0, 121.5, 12.9, 16.0, 17.5],
+         7: [117.0, 121.7, 127.3, 13.0, 16.5, 18.4],
+         8: [122.2, 127.3, 133.1, 13.2, 17.3, 19.6],
+         9: [126.9, 132.6, 138.5, 13.5, 18.2, 20.9],
+        10: [131.3, 137.8, 143.6, 13.9, 19.2, 22.2],
+        11: [135.8, 143.5, 149.2, 14.4, 20.1, 23.2],
+        12: [141.0, 149.7, 155.7, 14.8, 21.1, 24.3],
+        13: [148.0, 156.5, 163.0, 15.3, 21.8, 25.1],
+        14: [154.7, 163.2, 170.5, 15.8, 22.5, 25.9],
+        15: [160.7, 169.0, 177.0, 16.3, 23.2, 26.6],
+        16: [164.7, 173.3, 181.7, 16.8, 23.8, 27.2],
+        17: [166.9, 175.9, 184.4, 17.2, 24.3, 27.7],
+        18: [167.9, 177.2, 185.8, 17.6, 24.8, 28.1]
+      },
+      female: {
+         2: [ 81.5,  86.4,  91.3, 13.6, 17.0, 18.1],
+         3: [ 88.3,  93.9,  99.4, 13.2, 16.5, 17.7],
+         4: [ 94.4, 100.3, 106.1, 13.0, 16.1, 17.4],
+         5: [104.9, 109.4, 114.0, 12.7, 15.3, 16.6],
+         6: [110.8, 115.1, 120.2, 12.6, 15.6, 17.1],
+         7: [116.3, 120.6, 126.1, 12.7, 16.2, 18.0],
+         8: [121.6, 126.0, 132.1, 13.0, 17.0, 19.4],
+         9: [126.6, 131.2, 137.9, 13.3, 18.1, 20.9],
+        10: [131.7, 136.5, 143.7, 13.7, 19.2, 22.4],
+        11: [137.4, 142.5, 150.2, 14.2, 20.3, 23.8],
+        12: [143.5, 149.0, 157.4, 14.7, 21.3, 25.0],
+        13: [149.0, 154.6, 163.5, 15.1, 22.1, 25.9],
+        14: [153.0, 158.7, 167.9, 15.5, 22.7, 26.6],
+        15: [154.8, 161.2, 170.0, 15.9, 23.2, 27.1],
+        16: [155.8, 162.5, 171.4, 16.2, 23.6, 27.5],
+        17: [156.2, 163.1, 172.1, 16.5, 23.9, 27.7],
+        18: [156.5, 163.4, 172.4, 16.7, 24.1, 27.9]
+      }
+    };
+    var table = T[gender] || T.female;
+    var age   = Math.max(2, Math.min(18, ageDecimal));
+    var lo    = Math.max(2, Math.floor(age));
+    var hi    = Math.min(18, lo + 1);
+    var frac  = age - lo;
+    var dLo   = table[lo] || table[2];
+    var dHi   = table[hi] || table[18];
+    var ip    = function(i) { return Math.round((dLo[i] + (dHi[i] - dLo[i]) * frac) * 10) / 10; };
+    return { hP10: ip(0), hP50: ip(1), hP90: ip(2), bP5: ip(3), bP85: ip(4), bP95: ip(5) };
+  }
+
+  _drawCentileBmiChart(bmiData, gender) {
+    var self    = this;
+    var canvas  = this.shadowRoot.getElementById('centileBmiChart');
+    if (!canvas) return;
+    if (canvas._ci) { canvas._ci.destroy(); }
+
+    var labels  = bmiData.map(function(d) { return d.date; });
+    var bmiVals = bmiData.map(function(d) { return d.bmi; });
+    var p5s     = bmiData.map(function(d) { return self._getCentileBounds(d.age, gender).bP5; });
+    var p85s    = bmiData.map(function(d) { return self._getCentileBounds(d.age, gender).bP85; });
+    var p95s    = bmiData.map(function(d) { return self._getCentileBounds(d.age, gender).bP95; });
+    var all     = bmiVals.concat(p5s, p95s);
+    var minY    = Math.floor(Math.min.apply(null, all) - 1);
+    var maxY    = Math.ceil(Math.max.apply(null, all) + 2);
+    var topLine = labels.map(function() { return maxY; });
+
+    canvas._ci = new window.Chart(canvas, {
+      data: {
+        labels: labels,
+        datasets: [
+          { type: 'line', data: p5s,    backgroundColor: 'rgba(155,89,182,0.22)',  borderWidth: 0, pointRadius: 0, fill: 'origin', order: 10 },
+          { type: 'line', data: p85s,   backgroundColor: 'rgba(29,158,117,0.22)', borderWidth: 0, pointRadius: 0, fill: '-1',     order: 11 },
+          { type: 'line', data: p95s,   backgroundColor: 'rgba(186,117,23,0.28)', borderWidth: 0, pointRadius: 0, fill: '-1',     order: 12 },
+          { type: 'line', data: topLine,backgroundColor: 'rgba(226,75,74,0.28)',  borderWidth: 0, pointRadius: 0, fill: '-1',     order: 13 },
+          { type: 'line', label: 'BMI', data: bmiVals,
+            borderColor: '#fff', backgroundColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 2, pointRadius: 2, pointHoverRadius: 5,
+            tension: 0.3, fill: false, order: 1 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function(ctx) {
+            if (ctx.datasetIndex !== 4) return null;
+            var b  = self._getCentileBounds(bmiData[ctx.dataIndex].age, gender);
+            var v  = ctx.parsed.y;
+            var cat = v < b.bP5 ? 'Niedowaga' : v < b.bP85 ? 'Norma' : v < b.bP95 ? 'Nadwaga' : 'Oty\u0142o\u015b\u0107';
+            return ' BMI ' + v + ' \u2014 ' + cat;
+          }}}
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 8, color: '#73726c', font: { size: 11 }, maxRotation: 30 }, grid: { display: false } },
+          y: { min: minY, max: maxY, ticks: { color: '#73726c', font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.1)' } }
+        }
+      }
+    });
+  }
+
+  _drawCentileHgtChart(currentAge, currentHeight, gender) {
+    var self   = this;
+    var canvas = this.shadowRoot.getElementById('centileHgtChart');
+    if (!canvas) return;
+    if (canvas._ci) { canvas._ci.destroy(); }
+
+    // Oś X: wiek od 2 do 18, co 0.5 roku
+    var ages = [];
+    for (var a = 2; a <= 18; a += 0.5) ages.push(Math.round(a * 10) / 10);
+
+    var labels  = ages.map(function(a) { return a % 1 === 0 ? a + '' : ''; }); // tylko całe lata
+    var p10s    = ages.map(function(a) { return self._getCentileBounds(a, gender).hP10; });
+    var p50s    = ages.map(function(a) { return self._getCentileBounds(a, gender).hP50; });
+    var p90s    = ages.map(function(a) { return self._getCentileBounds(a, gender).hP90; });
+    var topLine = ages.map(function(a) { return self._getCentileBounds(a, gender).hP90 + 20; });
+
+    // Marker: punkt na pozycji aktualnego wieku i wzrostu
+    var closestIdx = 0;
+    var minDiff    = Infinity;
+    ages.forEach(function(a, i) { var d = Math.abs(a - currentAge); if (d < minDiff) { minDiff = d; closestIdx = i; } });
+    var markerData = ages.map(function(_, i) { return i === closestIdx ? currentHeight : null; });
+
+    var allH = p10s.concat(p90s, [currentHeight]);
+    var minH = Math.floor(Math.min.apply(null, allH) - 5);
+    var maxH = Math.ceil(Math.max.apply(null, topLine) + 2);
+
+    canvas._ci = new window.Chart(canvas, {
+      data: {
+        labels: labels,
+        datasets: [
+          { type: 'line', data: p10s,   backgroundColor: 'rgba(226,75,74,0.22)',  borderWidth: 0, pointRadius: 0, fill: 'origin', order: 10 },
+          { type: 'line', data: p90s,   backgroundColor: 'rgba(29,158,117,0.22)', borderWidth: 0, pointRadius: 0, fill: '-1',     order: 11 },
+          { type: 'line', data: topLine,backgroundColor: 'rgba(59,139,212,0.22)', borderWidth: 0, pointRadius: 0, fill: '-1',     order: 12 },
+          { type: 'line', data: p50s,   borderColor: 'rgba(255,255,255,0.25)', borderWidth: 1, borderDash: [4,3], pointRadius: 0, fill: false, order: 5 },
+          { type: 'scatter', data: markerData.map(function(v, i) { return v !== null ? { x: i, y: v } : null; }).filter(Boolean),
+            backgroundColor: '#FFD700', borderColor: '#FFD700', pointRadius: 8, pointStyle: 'triangle', order: 1 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function(ctx) {
+            if (ctx.datasetIndex !== 4) return null;
+            var b   = self._getCentileBounds(currentAge, gender);
+            var cat = currentHeight < b.hP10 ? 'Niski' : currentHeight < b.hP90 ? '\u015arednio-Wysoki' : 'Bardzo wysoki';
+            return ' ' + currentHeight + ' cm \u2014 ' + cat;
+          }}}
+        },
+        scales: {
+          x: { ticks: { color: '#73726c', font: { size: 11 } }, grid: { display: false } },
+          y: { min: minH, max: maxH,
+               ticks: { color: '#73726c', font: { size: 11 }, callback: function(v) { return v + ' cm'; } },
+               grid: { color: 'rgba(128,128,128,0.1)' } }
+        }
+      }
+    });
   }
 
   _renderSettings() {
