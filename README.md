@@ -16,34 +16,52 @@
 
 | Zakładka | Opis |
 |---|---|
-| ⚖ Waga | Waga ciała, BMI, postęp do celów, bilanse miesięczne/tygodniowe, wykres historii |
-| 💊 Ciśnienie | Skurczowe, rozkurczowe, puls, statystyki, wykres, generowanie raportu PDF |
-| 🏃 Aktywność | W budowie |
-| ⚙ Konfiguracja | W budowie |
+| ⚖ Waga | Waga ciała, BMI, bilanse bieżące, postęp do celów, wykresy historii i BMI |
+| 💊 Ciśnienie | Skurczowe, rozkurczowe, puls, statystyki, wykres 90 dni, raport PDF |
+| 🏃 Aktywność | Kroki i kalorie — dzienne wykresy słupkowe, cel dzienny, statystyki |
+| ✏ Wprowadź dane | Ręczny zapis ciśnienia i wzrostu do `input_number` |
 
 ---
 
 ## Funkcje — Waga
 
-- Aktualna waga, łączna utrata, średnie tempo
+- Aktualna waga, łączna utrata, średnie tempo tygodniowe
+- **Bieżący bilans**: zmiana wagi w aktualnym miesiącu i tygodniu, średnia waga i średnie BMI z bieżącego miesiąca
 - BMI z kategorią i paskiem wizualnym (skala niedowaga → otyłość III°)
 - Postęp do celów wagowych z licznikiem dni i wymaganym tempem
 - Bilanse miesięczne (ostatnie 12) i tygodniowe (ostatnie 16) z paskami
-- Wykres historii z trendem 7-dniowym
+- Wykresy w zakładkach bilansów: **Waga** (miesięczna średnia), **BMI** (miesięczne BMI z liniami norm i kolorowymi punktami)
+- Wykres historii z trendem 7-dniowym, oś Y dopasowuje się dynamicznie do danych
 - Przełącznik zakresu: od początku / 6 mies. / 3 mies. / 30 dni / 14 dni / 7 dni
-- Dane z long-term + short-term statistics HA (ostatnie 48h)
 - Alert gdy cel krwiodawstwa jest w ciągu 7 dni
+- Nawigacja przyklejona do góry podczas scrollowania
 
 ## Funkcje — Ciśnienie
 
-- Aktualne wartości skurczowego, rozkurczowego i pulsu z kolorowaniem wg normy
+- Aktualne wartości z kolorowaniem wg normy — pobierane z `input_number` (priorytet) lub `sensor`
 - Alert bazujący na encji kategorii lub automatyczna klasyfikacja WHO
 - Statystyki 30 dni: średnia, min, max dla każdego parametru
 - Wykres 90 dni z liniami norm (120/80 mmHg)
-- **Generowanie raportu PDF** z wyborem okresu (7/14/30/90 dni) zawierającego:
+- **Generowanie raportu PDF** z wyborem okresu (7/14/30/90 dni):
   - Dane osobowe (imię, data urodzenia, wzrost/waga, urządzenie)
-  - Tabelę pomiarów z datą, godziną, porą dnia i kategorią WHO
+  - Tabela pomiarów z datą, godziną, porą dnia i kategorią WHO
+  - Deduplikacja artefaktów HA: usuwa powtórzenia powstałe przez re-odczyt po restarcie
+  - Ręczne wykluczanie konkretnych timestampów przez `bp_exclude_timestamps`
   - Podsumowanie statystyczne z oceną
+- Zakładka ciśnienia może być wyłączona przez `bp_enabled: false` w YAML
+
+## Funkcje — Aktywność
+
+- Aktualna liczba kroków i kalorii z ich procentem realizacji celu
+- Wykresy słupkowe dzienne kroków i kalorii (kolorowanie: zielony ≥ cel, pomarańczowy ≥ 50%, czerwony < 50%)
+- Przełącznik zakresu: 7 / 14 / 30 / 90 dni
+- Statystyki: średnia i max dla wybranego okresu
+
+## Funkcje — Wprowadź dane
+
+- Formularz zapisu ciśnienia (skurczowe / rozkurczowe / puls) do encji `input_number` — tylko gdy wszystkie trzy pola są wypełnione
+- Formularz zapisu wzrostu do `input_number`
+- Pod każdym polem wyświetlana jest nazwa encji z YAML lub ostrzeżenie o braku konfiguracji
 
 ---
 
@@ -68,53 +86,69 @@ Skopiuj `health-card.js` do `/config/www/` i dodaj zasób w HA:
 ## Konfiguracja
 
 ```yaml
-title: Jan Waga
-path: jan-waga
-panel: true
-cards:
-  - type: custom:health-card
-    # --- Waga ---
-    entity_id: sensor.weight                 # encja wagi (wymagane)
-    start_weight: 90.0                       # waga startowa w kg
-    start_date: "2025-01-01"                 # data startu
-    height_cm_entity: input_number.wzrost   # encja wzrostu (opcjonalne)
-    height_cm: 175                           # wzrost w cm (fallback)
-    history_days: 365                        # ile dni historii pobierać
+type: custom:health-card
 
-    # --- Ciśnienie ---
-    bp_systolic:  sensor.bp_skurczowe       # encja skurczowego
-    bp_diastolic: sensor.bp_rozkurczowe     # encja rozkurczowego
-    bp_pulse:     sensor.bp_puls            # encja pulsu
-    bp_category:  sensor.kategoria_cisnienia # encja kategorii (opcjonalne)
+# --- Waga ---
+entity_id: sensor.weight               # encja wagi (wymagane)
+start_weight: 90.0                     # waga startowa w kg
+start_date: "2025-01-01"              # data startu
+height_cm_entity: input_number.wzrost  # encja wzrostu do odczytu i zapisu
+height_cm: 175                         # wzrost w cm (fallback gdy brak encji)
+history_days: 365                      # ile dni historii pobierać
 
-    # --- Raport PDF ---
-    report_name:      "Jan Kowalski"
-    report_birthdate: "1990-01-15"           # opcjonalne, format YYYY-MM-DD
-    report_device:    "Ciśnieniomierz"       # nazwa urządzenia
+# --- Ciśnienie (historia) ---
+bp_systolic:  sensor.bp_skurczowe
+bp_diastolic: sensor.bp_rozkurczowe
+bp_pulse:     sensor.bp_puls
+bp_category:  sensor.kategoria_cisnienia   # opcjonalne — encja kategorii słownej
 
-    # --- Cele wagowe ---
-    goals:
-      - key: blood_donation                  # blood_donation = specjalny alert 7 dni przed
-        weight: 80.0
-        label: Krwiodawstwo
-        date: "2025-06-01"
-        color: "#BA7517"
-      - key: summer
-        weight: 75.0
-        label: Lato
-        date: "2025-07-01"
-        color: "#1D9E75"
+# --- Ciśnienie (aktualne wartości z input_number) ---
+bp_systolic_now:  input_number.bp_systolic
+bp_diastolic_now: input_number.bp_diastolic
+bp_pulse_now:     input_number.bp_pulse
+
+# --- Widoczność zakładki Ciśnienie ---
+bp_enabled: true                       # false = ukrywa zakładkę Ciśnienie
+
+# --- Aktywność ---
+steps_entity:    sensor.daily_steps
+calories_entity: sensor.kalorie_dzienne
+steps_goal:    10000
+calories_goal:   800
+
+# --- Raport PDF ---
+report_name:      "Jan Kowalski"
+report_birthdate: "1990-01-15"         # format YYYY-MM-DD, opcjonalne
+report_device:    "Ciśnieniomierz"
+
+# --- Deduplikacja PDF (ręczne wykluczenia) ---
+bp_exclude_timestamps:
+  - "2026-03-16 22:59"                 # format YYYY-MM-DD HH:MM, strefa lokalna
+  - "2026-03-17 07:05"
+
+# --- Cele wagowe ---
+goals:
+  - key: blood_donation                # blood_donation = alert 7 dni przed datą
+    weight: 80.0
+    label: Krwiodawstwo
+    date: "2025-06-01"
+    color: "#BA7517"
+  - key: summer
+    weight: 75.0
+    label: Lato
+    date: "2025-07-01"
+    color: "#1D9E75"
 ```
+
+---
+
+## Dla wielu użytkowników
+
+Jeden plik `health-card.js` obsługuje wszystkich — każda osoba konfiguruje własną kartę przez YAML z własnymi encjami, wagą startową i celami. Zmiana konfiguracji powoduje automatyczne przeładowanie wszystkich danych.
 
 ---
 
 ## Wymagania
 
 - Home Assistant 2023.0.0+
-- Encje wagi i ciśnienia muszą mieć `state_class: measurement` aby były w long-term statistics HA
-
----
-
-## Dla wielu użytkowników
-
-Jeden plik `health-card.js` obsługuje wszystkich — każda osoba konfiguruje własną kartę przez YAML z inną encją, wagą startową i celami.
+- Encje wagi i ciśnienia muszą mieć `state_class: measurement` aby były dostępne w long-term statistics HA
