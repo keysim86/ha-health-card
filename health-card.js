@@ -828,7 +828,7 @@ class HealthCard extends HTMLElement {
                    : e.lu != null ? Math.round(e.lu * 1000) : 0;
             return { ts: ts, val: Math.round(parseFloat(e.s)) };
           })
-          .filter(function(e) { return e.ts > 0; })
+          .filter(function(e) { return e.ts > 0 && e.ts >= start.getTime(); })
           .sort(function(a, b) { return a.ts - b.ts; });
       }
 
