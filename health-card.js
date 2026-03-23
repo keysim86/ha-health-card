@@ -356,6 +356,22 @@ class HealthCard extends HTMLElement {
     var weekly   = this._calcWeekly(daily);
     var self     = this;
 
+    // Miesięczne średnie wagi i BMI do wykresów w zakładkach Waga/BMI
+    var byMonthVals = new Map();
+    daily.forEach(function(d) {
+      var m = d[0].slice(0, 7);
+      if (!byMonthVals.has(m)) byMonthVals.set(m, []);
+      byMonthVals.get(m).push(d[1]);
+    });
+    var monthlyAvg = [];
+    byMonthVals.forEach(function(vals, m) {
+      var avg = vals.reduce(function(a, b) { return a + b; }, 0) / vals.length;
+      monthlyAvg.push([m, Math.round(avg * 100) / 100]);
+    });
+    monthlyAvg.sort(function(a, b) { return a[0].localeCompare(b[0]); });
+    this._monthlyAvg = monthlyAvg;
+    this._monthlyBmi = monthlyAvg.map(function(d) { return [d[0], self._bmi(d[1])]; });
+
     var currentW    = weights[weights.length - 1];
     var currentDate = labels[labels.length - 1];
     var totalLoss   = Math.round((this.config.start_weight - currentW) * 100) / 100;
@@ -464,11 +480,15 @@ class HealthCard extends HTMLElement {
       '<div class="prog-grid">' + goalsHtml + '</div>' +
       '<h3>&#128197; Bilanse</h3>' +
       '<div class="tabs">' +
-        '<div class="tab active" id="tab-monthly" onclick="this.getRootNode().host._switchTab(\'monthly\')">Miesięczne</div>' +
-        '<div class="tab" id="tab-weekly" onclick="this.getRootNode().host._switchTab(\'weekly\')">Tygodniowe</div>' +
+        '<div class="tab active" id="tab-monthly"      onclick="this.getRootNode().host._switchTab(\'monthly\')">Miesięczne</div>' +
+        '<div class="tab"        id="tab-weekly"       onclick="this.getRootNode().host._switchTab(\'weekly\')">Tygodniowe</div>' +
+        '<div class="tab"        id="tab-weight-chart" onclick="this.getRootNode().host._switchTab(\'weight-chart\')">Waga</div>' +
+        '<div class="tab"        id="tab-bmi-chart"    onclick="this.getRootNode().host._switchTab(\'bmi-chart\')">BMI</div>' +
       '</div>' +
       '<div id="bal-monthly" class="balance-grid">' + balRows(monthly, 'month', function(m){ return self._monthName(m); }) + '<div class="note">* miesiąc niepełny &middot; pierwsza waga miesiąca &rarr; pierwsza waga kolejnego</div></div>' +
       '<div id="bal-weekly" class="balance-grid" style="display:none">' + balRows(weekly, 'week', function(w){ return w.slice(5); }) + '<div class="note">* tydzień niepełny &middot; ostatnie 16 tygodni</div></div>' +
+      '<div id="bal-weight-chart" style="display:none"><div class="chart-wrap" style="height:220px"><canvas id="wBalChart"></canvas></div></div>' +
+      '<div id="bal-bmi-chart"    style="display:none"><div class="chart-wrap" style="height:220px"><canvas id="bmiBalChart"></canvas></div></div>' +
       '<h3>&#128200; Historia wagi</h3>' +
       '<div class="tabs">' +
         '<div class="tab active" id="range-all" onclick="this.getRootNode().host._switchRange(\'all\')">Od początku</div>' +
@@ -1254,11 +1274,111 @@ class HealthCard extends HTMLElement {
   }
 
   _switchTab(tab) {
-    var r = this.shadowRoot;
-    r.getElementById('tab-monthly').classList.toggle('active', tab === 'monthly');
-    r.getElementById('tab-weekly').classList.toggle('active', tab === 'weekly');
-    r.getElementById('bal-monthly').style.display = tab === 'monthly' ? '' : 'none';
-    r.getElementById('bal-weekly').style.display  = tab === 'weekly'  ? '' : 'none';
+    var r    = this.shadowRoot;
+    var tabs = ['monthly', 'weekly', 'weight-chart', 'bmi-chart'];
+    tabs.forEach(function(t) {
+      var tabEl = r.getElementById('tab-' + t);
+      var panEl = r.getElementById('bal-' + t);
+      if (tabEl) tabEl.classList.toggle('active', t === tab);
+      if (panEl) panEl.style.display = (t === tab) ? '' : 'none';
+    });
+    if (tab === 'weight-chart') this._drawWeightBalChart();
+    if (tab === 'bmi-chart')    this._drawBmiChart();
+  }
+
+  _drawWeightBalChart() {
+    var self = this;
+    var data = this._monthlyAvg || [];
+    if (!data.length) return;
+    var draw = function() {
+      var canvas = self.shadowRoot.getElementById('wBalChart');
+      if (!canvas) return;
+      if (canvas._chartInst) { canvas._chartInst.destroy(); }
+      var labels = data.map(function(d) { return self._monthName(d[0]); });
+      var vals   = data.map(function(d) { return d[1]; });
+      var mn = Math.floor(Math.min.apply(null, vals) - 1);
+      var mx = Math.ceil(Math.max.apply(null, vals) + 1);
+      canvas._chartInst = new window.Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Śred. waga',
+            data: vals,
+            borderColor: '#378ADD',
+            backgroundColor: 'rgba(55,138,221,0.12)',
+            borderWidth: 2, pointRadius: 4, pointHoverRadius: 6,
+            tension: 0.3, fill: true
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: function(ctx) { return ' ' + ctx.parsed.y.toFixed(2) + ' kg'; } } }
+          },
+          scales: {
+            x: { ticks: { color: '#73726c', font: { size: 11 }, maxRotation: 30 }, grid: { display: false } },
+            y: { min: mn, max: mx, ticks: { callback: function(v) { return v + ' kg'; }, color: '#73726c', font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.1)' } }
+          }
+        }
+      });
+    };
+    if (window.Chart) draw(); else setTimeout(draw, 500);
+  }
+
+  _drawBmiChart() {
+    var self = this;
+    var data = this._monthlyBmi || [];
+    if (!data.length) return;
+    var draw = function() {
+      var canvas = self.shadowRoot.getElementById('bmiBalChart');
+      if (!canvas) return;
+      if (canvas._chartInst) { canvas._chartInst.destroy(); }
+      var labels = data.map(function(d) { return self._monthName(d[0]); });
+      var vals   = data.map(function(d) { return d[1]; });
+      var pointColors = vals.map(function(v) { return self._bmiCat(v).color; });
+      var mn = Math.floor(Math.min.apply(null, vals) - 0.5);
+      var mx = Math.ceil(Math.max.apply(null, vals) + 0.5);
+      var refLine = function(val, color, label) {
+        return { type: 'line', label: label, data: labels.map(function(){ return val; }),
+          borderColor: color, borderWidth: 1, borderDash: [4, 3],
+          pointRadius: 0, fill: false, order: 10 };
+      };
+      canvas._chartInst = new window.Chart(canvas, {
+        data: {
+          labels: labels,
+          datasets: [
+            { type: 'line', label: 'BMI', data: vals,
+              borderColor: '#BA7517', backgroundColor: 'rgba(186,117,23,0.1)',
+              borderWidth: 2, pointRadius: 4, pointHoverRadius: 6,
+              pointBackgroundColor: pointColors,
+              tension: 0.3, fill: true, order: 1 },
+            refLine(18.5, '#3B8BD4', 'Niedowaga'),
+            refLine(25.0, '#1D9E75', 'Norma'),
+            refLine(30.0, '#BA7517', 'Nadwaga'),
+            refLine(35.0, '#E24B4A', 'Otyłość I°')
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: {
+              label: function(ctx) {
+                if (ctx.datasetIndex !== 0) return null;
+                return ' BMI ' + ctx.parsed.y + ' — ' + self._bmiCat(ctx.parsed.y).label;
+              }
+            }}
+          },
+          scales: {
+            x: { ticks: { color: '#73726c', font: { size: 11 }, maxRotation: 30 }, grid: { display: false } },
+            y: { min: mn, max: mx, ticks: { color: '#73726c', font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.1)' } }
+          }
+        }
+      });
+    };
+    if (window.Chart) draw(); else setTimeout(draw, 500);
   }
 
   _switchRange(range) {
