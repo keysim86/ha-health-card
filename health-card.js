@@ -599,7 +599,10 @@ class HealthCard extends HTMLElement {
     };
 
     var field = function(id, label, unit, entityId, min, max) {
-      var hint = entityId ? '<small style="color:var(--secondary-text-color);font-size:10px">' + entityId + '</small>' : '<small style="color:#E24B4A;font-size:10px">brak encji w YAML</small>';
+      var hintStyle = 'display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;';
+      var hint = entityId
+        ? '<small style="' + hintStyle + 'color:var(--secondary-text-color)">' + entityId + '</small>'
+        : '<small style="' + hintStyle + 'color:#E24B4A">brak encji w YAML</small>';
       var disabled = entityId ? '' : ' disabled';
       return '<div class="de-field">'
         + '<div class="de-label">' + label + '<small>' + unit + '</small></div>'
@@ -1257,6 +1260,8 @@ class HealthCard extends HTMLElement {
         return (d.getDate()) + '.' + (d.getMonth() + 1);
       }
 
+      var tickColor = getComputedStyle(self.shadowRoot.host).getPropertyValue('--secondary-text-color').trim() || '#888';
+
       function makeBarChart(canvasId, data, goal, tooltipSuffix) {
         var canvas = self.shadowRoot.getElementById(canvasId);
         if (!canvas || !data.length) return null;
@@ -1284,12 +1289,12 @@ class HealthCard extends HTMLElement {
             },
             scales: {
               x: {
-                ticks: { maxTicksLimit: 12, color: 'var(--secondary-text-color, #888)', font: { size: 10 }, maxRotation: 0 },
+                ticks: { maxTicksLimit: 12, color: tickColor, font: { size: 10 }, maxRotation: 0 },
                 grid: { display: false },
               },
               y: {
                 ticks: {
-                  color: 'var(--secondary-text-color, #888)',
+                  color: tickColor,
                   font: { size: 10 },
                   callback: function(v) { return v >= 1000 ? (v / 1000).toFixed(1).replace('.0', '') + 'k' : v; }
                 },
