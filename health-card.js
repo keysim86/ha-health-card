@@ -286,7 +286,7 @@ class HealthCard extends HTMLElement {
         .note { font-size: 10px; color: var(--secondary-text-color); margin-top: 4px; }
         .loading { text-align: center; color: var(--secondary-text-color); padding: 40px; }
         code { background: var(--secondary-background-color); padding: 1px 4px; border-radius: 4px; font-size: 11px; }
-        .nav { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.1)); padding-bottom: 0; }
+        .nav { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.1)); padding-bottom: 0; position: sticky; top: 0; z-index: 10; background: var(--card-background-color, var(--ha-card-background, #1c1c1c)); }
         .nav-btn { padding: 8px 16px; font-size: 13px; cursor: pointer; background: none; border: none; color: var(--secondary-text-color); border-bottom: 2px solid transparent; margin-bottom: -1px; user-select: none; font-family: inherit; }
         .nav-btn:hover { color: var(--primary-text-color); }
         .nav-btn.active { color: var(--primary-color, #1D9E75); border-bottom-color: var(--primary-color, #1D9E75); font-weight: 500; }
