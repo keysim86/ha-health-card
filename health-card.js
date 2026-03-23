@@ -16,14 +16,18 @@ class HealthCard extends HTMLElement {
       entity_id:        config.entity_id        || 'sensor.weight',
       start_weight:     config.start_weight     || 100.0,
       start_date:       config.start_date       || '2025-01-01',
-      height_cm_entity: config.height_cm_entity || null,
+      height_cm_entity: config.height_cm_entity || 'input_number.wzrost_grzegorz',
       height_cm:        config.height_cm        || 175,
       history_days:     config.history_days     || 365,
       goals:            config.goals            || [],
-      bp_systolic:  config.bp_systolic  || 'sensor.bp_grzegorz_skurczowe',
-      bp_diastolic: config.bp_diastolic || 'sensor.bp_grzegorz_rozkurczowe',
-      bp_pulse:     config.bp_pulse     || 'sensor.bp_grzegorz_puls',
-      bp_category:  config.bp_category  || 'sensor.grzegorz_kategoria_cisnienia',
+      bp_systolic:      config.bp_systolic      || 'sensor.bp_grzegorz_skurczowe',
+      bp_diastolic:     config.bp_diastolic     || 'sensor.bp_grzegorz_rozkurczowe',
+      bp_pulse:         config.bp_pulse         || 'sensor.bp_grzegorz_puls',
+      bp_systolic_now:  config.bp_systolic_now  || 'input_number.bp_grzegorz_systolic',
+      bp_diastolic_now: config.bp_diastolic_now || 'input_number.bp_grzegorz_diastolic',
+      bp_pulse_now:     config.bp_pulse_now     || 'input_number.bp_grzegorz_pulse',
+      bp_category:      config.bp_category      || 'sensor.grzegorz_kategoria_cisnienia',
+      bp_enabled:       config.bp_enabled !== false,
       steps_entity:    config.steps_entity    || '',
       calories_entity: config.calories_entity || '',
       steps_goal:      config.steps_goal      || 10000,
@@ -33,6 +37,19 @@ class HealthCard extends HTMLElement {
       report_device:    config.report_device    || 'Ciśnieniomierz',
 
     };
+    // Załaduj nadpisania z localStorage
+    try {
+      var ov = JSON.parse(localStorage.getItem('health-card-settings') || '{}');
+      if (ov.bp_systolic)        this.config.bp_systolic        = ov.bp_systolic;
+      if (ov.bp_diastolic)       this.config.bp_diastolic       = ov.bp_diastolic;
+      if (ov.bp_pulse)           this.config.bp_pulse           = ov.bp_pulse;
+      if (ov.bp_systolic_now)    this.config.bp_systolic_now    = ov.bp_systolic_now;
+      if (ov.bp_diastolic_now)   this.config.bp_diastolic_now   = ov.bp_diastolic_now;
+      if (ov.bp_pulse_now)       this.config.bp_pulse_now       = ov.bp_pulse_now;
+      if (ov.height_cm_entity !== undefined) this.config.height_cm_entity = ov.height_cm_entity || null;
+      if (ov.height_cm)          this.config.height_cm          = ov.height_cm;
+      if (ov.bp_enabled !== undefined) this.config.bp_enabled   = ov.bp_enabled;
+    } catch(e) {}
   }
 
   set hass(hass) {
@@ -308,6 +325,21 @@ class HealthCard extends HTMLElement {
         .report-btn:hover { background: var(--primary-color, #1D9E75); color: #fff; }
         .report-period { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; color: var(--secondary-text-color); }
         .report-period select { background: var(--secondary-background-color); color: var(--primary-text-color); border: 0.5px solid var(--color-border-secondary, rgba(255,255,255,0.2)); border-radius: 8px; padding: 5px 10px; font-size: 13px; font-family: inherit; cursor: pointer; }
+        .setting-group { background: var(--secondary-background-color); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+        .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; }
+        .setting-label { font-size: 13px; color: var(--primary-text-color); flex: 1; min-width: 0; }
+        .setting-label small { display: block; font-size: 10px; color: var(--secondary-text-color); margin-top: 1px; }
+        .setting-input { background: var(--card-background-color, #1c1c1c); color: var(--primary-text-color); border: 0.5px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 6px 10px; font-size: 12px; font-family: inherit; width: 200px; min-width: 0; }
+        .setting-input:focus { outline: none; border-color: var(--primary-color, #1D9E75); }
+        .toggle { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.15); border-radius: 24px; transition: .3s; }
+        .toggle-slider:before { position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .3s; }
+        input:checked + .toggle-slider { background: var(--primary-color, #1D9E75); }
+        input:checked + .toggle-slider:before { transform: translateX(20px); }
+        .settings-status { font-size: 12px; margin-top: 8px; padding: 8px 12px; border-radius: 8px; display: none; }
+        .settings-status.ok   { display: block; background: #E1F5EE; color: #0F6E56; }
+        .settings-status.err  { display: block; background: #FCEBEB; color: #A32D2D; }
 
       </style>
       <ha-card>
@@ -321,7 +353,7 @@ class HealthCard extends HTMLElement {
           <div id="content"><div class="loading">Ładowanie danych...</div></div>
           <div id="page-pressure" class="nav-page" style="display:none"></div>
           <div id="page-activity" class="nav-page" style="display:none"></div>
-          <div id="page-settings" class="nav-page" style="display:none"><div class="empty-page"><div class="icon">&#9881;</div><div class="title">Konfiguracja</div><div>W budowie &mdash; wkr&oacute;tce</div></div></div>
+          <div id="page-settings" class="nav-page" style="display:none"></div>
         </div>
       </ha-card>
     `;
@@ -435,6 +467,7 @@ class HealthCard extends HTMLElement {
         if (btn) self._switchPage(btn.getAttribute('data-page'));
       });
     }
+    this._applyNavVisibility();
 
   }
 
@@ -447,6 +480,9 @@ class HealthCard extends HTMLElement {
     if (page === 'activity' && !this._activityLoaded) {
       this._activityLoaded = true;
       this._loadActivityData(this._activityDays);
+    }
+    if (page === 'settings') {
+      this._renderSettings();
     }
     var r = this.shadowRoot;
     var pages = ['weight', 'pressure', 'activity', 'settings'];
@@ -464,6 +500,103 @@ class HealthCard extends HTMLElement {
         btn.classList.toggle('active', btn.getAttribute('data-page') === page);
       });
     }
+    // Widoczność zakładki Ciśnienie
+    this._applyNavVisibility();
+  }
+
+  _applyNavVisibility() {
+    var nav = this.shadowRoot.getElementById('health-nav');
+    if (!nav) return;
+    var btn = nav.querySelector('[data-page="pressure"]');
+    if (btn) btn.style.display = this.config.bp_enabled ? '' : 'none';
+  }
+
+  _renderSettings() {
+    var page = this.shadowRoot.getElementById('page-settings');
+    if (!page) return;
+    var cfg  = this.config;
+    var row  = function(label, sub, id, val, type) {
+      return '<div class="setting-row">'
+        + '<div class="setting-label">' + label + (sub ? '<small>' + sub + '</small>' : '') + '</div>'
+        + '<input class="setting-input" id="' + id + '" type="' + (type || 'text') + '" value="' + (val || '') + '">'
+        + '</div>';
+    };
+
+    page.innerHTML =
+      '<h3>&#128138; Ci&#347;nienie krwi</h3>'
+      + '<div class="setting-group">'
+      +   '<div class="setting-row">'
+      +     '<div class="setting-label">Aktywna zak&#322;adka Ci&#347;nienie</div>'
+      +     '<label class="toggle"><input type="checkbox" id="s-bp-enabled"' + (cfg.bp_enabled ? ' checked' : '') + '><span class="toggle-slider"></span></label>'
+      +   '</div>'
+      + '</div>'
+      + '<h3>&#128138; Sensory historii (sensor.*)</h3>'
+      + '<div class="setting-group">'
+      +   row('Skurczowe', 'sensor.* &mdash; u\u017cywany do wykres\u00f3w i PDF', 's-bp-systolic',  cfg.bp_systolic)
+      +   row('Rozkurczowe', 'sensor.* &mdash; u\u017cywany do wykres\u00f3w i PDF', 's-bp-diastolic', cfg.bp_diastolic)
+      +   row('Puls',        'sensor.* &mdash; u\u017cywany do wykres\u00f3w i PDF', 's-bp-pulse',     cfg.bp_pulse)
+      + '</div>'
+      + '<h3>&#128138; Aktualna warto\u015b\u0107 (input_number.*)</h3>'
+      + '<div class="setting-group">'
+      +   row('Skurczowe teraz', 'input_number.* &mdash; wy\u015bwietlane jako bie\u017c\u0105ca warto\u015b\u0107', 's-bp-systolic-now',  cfg.bp_systolic_now)
+      +   row('Rozkurczowe teraz', 'input_number.*', 's-bp-diastolic-now', cfg.bp_diastolic_now)
+      +   row('Puls teraz',        'input_number.*', 's-bp-pulse-now',     cfg.bp_pulse_now)
+      + '</div>'
+      + '<h3>&#128207; Wzrost</h3>'
+      + '<div class="setting-group">'
+      +   row('Czujnik / input_number wzrostu', 'np. input_number.wzrost_grzegorz', 's-height-entity', cfg.height_cm_entity)
+      +   row('Wzrost r\u0119cznie (cm)', 'fallback gdy brak encji', 's-height-cm', cfg.height_cm, 'number')
+      + '</div>'
+      + '<button class="report-btn" id="settings-save">&#128190; Zapisz ustawienia</button>'
+      + '<div class="settings-status" id="settings-status"></div>';
+
+    var self = this;
+    page.querySelector('#settings-save').addEventListener('click', function() { self._saveSettings(); });
+  }
+
+  _saveSettings() {
+    var r   = this.shadowRoot;
+    var get = function(id) { var el = r.getElementById(id); return el ? el.value.trim() : ''; };
+    var chk = function(id) { var el = r.getElementById(id); return el ? el.checked : true; };
+
+    var ov = {
+      bp_enabled:       chk('s-bp-enabled'),
+      bp_systolic:      get('s-bp-systolic'),
+      bp_diastolic:     get('s-bp-diastolic'),
+      bp_pulse:         get('s-bp-pulse'),
+      bp_systolic_now:  get('s-bp-systolic-now'),
+      bp_diastolic_now: get('s-bp-diastolic-now'),
+      bp_pulse_now:     get('s-bp-pulse-now'),
+      height_cm_entity: get('s-height-entity'),
+      height_cm:        parseInt(get('s-height-cm')) || this.config.height_cm,
+    };
+
+    try {
+      localStorage.setItem('health-card-settings', JSON.stringify(ov));
+    } catch(e) {
+      var st = r.getElementById('settings-status');
+      if (st) { st.textContent = 'B\u0142\u0105d zapisu: ' + e.message; st.className = 'settings-status err'; }
+      return;
+    }
+
+    // Zastosuj natychmiast
+    this.config.bp_enabled       = ov.bp_enabled;
+    this.config.bp_systolic      = ov.bp_systolic      || this.config.bp_systolic;
+    this.config.bp_diastolic     = ov.bp_diastolic     || this.config.bp_diastolic;
+    this.config.bp_pulse         = ov.bp_pulse         || this.config.bp_pulse;
+    this.config.bp_systolic_now  = ov.bp_systolic_now  || this.config.bp_systolic_now;
+    this.config.bp_diastolic_now = ov.bp_diastolic_now || this.config.bp_diastolic_now;
+    this.config.bp_pulse_now     = ov.bp_pulse_now     || this.config.bp_pulse_now;
+    this.config.height_cm_entity = ov.height_cm_entity || null;
+    this.config.height_cm        = ov.height_cm;
+
+    // Wymuś ponowne załadowanie zakładki Ciśnienie
+    this._pressureLoaded = false;
+
+    this._applyNavVisibility();
+
+    var st = r.getElementById('settings-status');
+    if (st) { st.textContent = '\u2713 Ustawienia zapisane'; st.className = 'settings-status ok'; }
   }
 
   async _loadPressureData() {
@@ -491,15 +624,16 @@ class HealthCard extends HTMLElement {
         return;
       }
 
-      // Pobierz aktualne wartości z hass.states
-      var sysState = this._hass.states[this.config.bp_systolic];
-      var diaState = this._hass.states[this.config.bp_diastolic];
-      var pulState = this._hass.states[this.config.bp_pulse];
-      var catState = this.config.bp_category ? this._hass.states[this.config.bp_category] : null;
+      // Pobierz aktualne wartości — preferuj input_number (ręczny wpis), fallback na sensor
+      var _st = function(id) { return id ? this._hass.states[id] : null; }.bind(this);
+      var sysStateNow = _st(this.config.bp_systolic_now) || _st(this.config.bp_systolic);
+      var diaStateNow = _st(this.config.bp_diastolic_now) || _st(this.config.bp_diastolic);
+      var pulStateNow = _st(this.config.bp_pulse_now)    || _st(this.config.bp_pulse);
+      var catState    = this.config.bp_category ? this._hass.states[this.config.bp_category] : null;
 
-      var sysNow = sysState ? Math.round(parseFloat(sysState.state)) : '—';
-      var diaNow = diaState ? Math.round(parseFloat(diaState.state)) : '—';
-      var pulNow = pulState ? Math.round(parseFloat(pulState.state)) : '—';
+      var sysNow = sysStateNow ? Math.round(parseFloat(sysStateNow.state)) : '—';
+      var diaNow = diaStateNow ? Math.round(parseFloat(diaStateNow.state)) : '—';
+      var pulNow = pulStateNow ? Math.round(parseFloat(pulStateNow.state)) : '—';
       var catNow = catState ? catState.state : null;
 
       // Statystyki z ostatnich 30 dni
