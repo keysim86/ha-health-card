@@ -20,6 +20,7 @@ class HealthCard extends HTMLElement {
       height_cm:        config.height_cm        || 175,
       history_days:     config.history_days     || 365,
       goals:            config.goals            || [],
+      goals_enabled:    config.goals_enabled !== false,
       bp_systolic:      config.bp_systolic      || '',
       bp_diastolic:     config.bp_diastolic     || '',
       bp_pulse:         config.bp_pulse         || '',
@@ -496,8 +497,7 @@ class HealthCard extends HTMLElement {
         '<div class="bmi-card"><div class="bmi-label">BMI na starcie</div><div class="bmi-value" style="color:' + this._bmiCat(bmiStart).color + '">' + bmiStart + '</div><div class="bmi-cat" style="color:' + this._bmiCat(bmiStart).color + '">' + this._bmiCat(bmiStart).label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + Math.min(100, Math.max(0, (bmiStart - 15) / 30 * 100)) + '%"></div></div>' + bmiNormsHtml + '<div style="font-size:11px;color:var(--secondary-text-color);margin-top:8px">Zmiana BMI: <b>' + (Math.round((bmiNow-bmiStart)*10)/10) + '</b></div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:2px">Norma (BMI 25) = ' + normKg.toFixed(2) + ' kg</div></div>' +
         '<div class="bmi-card"><div class="bmi-label">BMI teraz (wzrost ' + h + ' cm)</div><div class="bmi-value" style="color:' + bmiCat.color + '">' + bmiNow + '</div><div class="bmi-cat" style="color:' + bmiCat.color + '">' + bmiCat.label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + bmiPct + '%"></div></div>' + bmiNormsHtml + '</div>' +
       '</div>' +
-      '<h3>&#127937; Postęp do celów</h3>' +
-      '<div class="prog-grid">' + goalsHtml + '</div>' +
+      (this.config.goals_enabled && goalsHtml ? '<h3>&#127937; Post&#281;p do cel&#243;w</h3><div class="prog-grid">' + goalsHtml + '</div>' : '') +
       '<h3>&#128197; Bilanse</h3>' +
       '<div class="tabs">' +
         '<div class="tab active" id="tab-monthly"      onclick="this.getRootNode().host._switchTab(\'monthly\')">Miesięczne</div>' +
