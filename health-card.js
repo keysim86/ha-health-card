@@ -365,6 +365,36 @@ class HealthCard extends HTMLElement {
     var bmiPct   = Math.min(100, Math.max(0, (bmiNow - 15) / 30 * 100));
     var normKg   = Math.round(25 * Math.pow(h/100, 2) * 100) / 100;
 
+    // Bilans aktualnego miesiąca
+    var nowMonth  = currentDate.slice(0, 7);
+    var monthDays = daily.filter(function(d) { return d[0].slice(0, 7) === nowMonth; });
+    var monthBal  = null, monthAvgW = null, monthAvgBmi = null;
+    if (monthDays.length > 0) {
+      monthBal    = Math.round((monthDays[monthDays.length - 1][1] - monthDays[0][1]) * 100) / 100;
+      var mSum    = monthDays.reduce(function(s, d) { return s + d[1]; }, 0);
+      monthAvgW   = Math.round(mSum / monthDays.length * 100) / 100;
+      var bmiSum  = monthDays.reduce(function(s, d) { return s + self._bmi(d[1]); }, 0);
+      monthAvgBmi = Math.round(bmiSum / monthDays.length * 10) / 10;
+    }
+
+    // Bilans aktualnego tygodnia (od poniedziałku)
+    var todayD       = new Date(currentDate);
+    var dayOfWeek    = todayD.getDay() || 7;
+    var weekStartD   = new Date(todayD);
+    weekStartD.setDate(todayD.getDate() - dayOfWeek + 1);
+    var weekStartStr = weekStartD.toLocaleDateString('sv-SE');
+    var weekDays     = daily.filter(function(d) { return d[0] >= weekStartStr; });
+    var weekBal      = null;
+    if (weekDays.length > 0) {
+      weekBal = Math.round((weekDays[weekDays.length - 1][1] - weekDays[0][1]) * 100) / 100;
+    }
+
+    var fmtBal = function(v) {
+      if (v === null) return '\u2014';
+      return (v <= 0 ? '\u2212' : '+') + Math.abs(v).toFixed(2) + ' kg';
+    };
+    var balColor = function(v) { return v === null ? '' : (v <= 0 ? 'color:#1D9E75' : 'color:#E24B4A'); };
+
     var bdGoal   = this.config.goals.find(function(g){ return g.key === 'blood_donation'; });
     var bdDays   = bdGoal ? this._daysUntil(bdGoal.date) : 999;
     var bdDone   = bdGoal && currentW <= bdGoal.weight;
@@ -415,6 +445,12 @@ class HealthCard extends HTMLElement {
         '<div class="metric"><div class="metric-label">Aktualnie (' + currentDate + ')</div><div class="metric-value good">' + currentW.toFixed(2) + ' kg</div><div class="metric-sub">ostatni odczyt</div></div>' +
         '<div class="metric"><div class="metric-label">Łączna utrata</div><div class="metric-value good">&minus;' + totalLoss.toFixed(2) + ' kg</div><div class="metric-sub">przez ' + days + ' dni</div></div>' +
         '<div class="metric"><div class="metric-label">Średnie tempo</div><div class="metric-value good">&minus;' + weeklyAvg.toFixed(2) + ' kg</div><div class="metric-sub">na tydzień</div></div>' +
+      '</div>' +
+      '<div class="metric-grid" style="margin-bottom:12px">' +
+        '<div class="metric"><div class="metric-label">Bilans miesiąca</div><div class="metric-value" style="' + balColor(monthBal) + '">' + fmtBal(monthBal) + '</div><div class="metric-sub">' + (nowMonth || '') + '</div></div>' +
+        '<div class="metric"><div class="metric-label">Bilans tygodnia</div><div class="metric-value" style="' + balColor(weekBal) + '">' + fmtBal(weekBal) + '</div><div class="metric-sub">od ' + weekStartStr + '</div></div>' +
+        '<div class="metric"><div class="metric-label">Śred. waga (mies.)</div><div class="metric-value">' + (monthAvgW !== null ? monthAvgW.toFixed(2) + ' kg' : '\u2014') + '</div><div class="metric-sub">' + (monthDays.length) + ' pomiarów</div></div>' +
+        '<div class="metric"><div class="metric-label">Śred. BMI (mies.)</div><div class="metric-value" style="' + (monthAvgBmi !== null ? 'color:' + self._bmiCat(monthAvgBmi).color : '') + '">' + (monthAvgBmi !== null ? monthAvgBmi : '\u2014') + '</div><div class="metric-sub">' + (monthAvgBmi !== null ? self._bmiCat(monthAvgBmi).label : '') + '</div></div>' +
       '</div>' +
       '<div class="bmi-row">' +
         '<div class="bmi-card"><div class="bmi-label">BMI na starcie</div><div class="bmi-value" style="color:' + this._bmiCat(bmiStart).color + '">' + bmiStart + '</div><div class="bmi-cat" style="color:' + this._bmiCat(bmiStart).color + '">' + this._bmiCat(bmiStart).label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + Math.min(100, Math.max(0, (bmiStart - 15) / 30 * 100)) + '%"></div></div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:8px">Zmiana BMI: <b>' + (Math.round((bmiNow-bmiStart)*10)/10) + '</b></div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:2px">Norma (BMI 25) = ' + normKg.toFixed(2) + ' kg</div></div>' +
