@@ -260,7 +260,7 @@ class HealthCard extends HTMLElement {
         .bmi-value { font-size: 20px; font-weight: 500; }
         .bmi-cat   { font-size: 12px; margin-top: 3px; font-weight: 500; }
         .bmi-bar   { margin-top: 8px; height: 6px; border-radius: 4px; overflow: hidden;
-          background: linear-gradient(to right,#3B8BD4 16%,#1D9E75 16% 40%,#BA7517 40% 60%,#E24B4A 60% 80%,#A32D2D 80%); }
+          background: linear-gradient(to right,#3B8BD4 12%,#1D9E75 12% 33%,#BA7517 33% 50%,#E24B4A 50% 67%,#A32D2D 67% 83%,#701515 83%); }
         .bmi-marker-wrap { position: relative; height: 10px; margin-top: 2px; }
         .bmi-marker { position: absolute; width: 2px; height: 10px; background: var(--primary-text-color); border-radius: 1px; transform: translateX(-50%); }
         .alert { border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
@@ -419,6 +419,16 @@ class HealthCard extends HTMLElement {
     };
     var balColor = function(v) { return v === null ? '' : (v <= 0 ? 'color:#1D9E75' : 'color:#E24B4A'); };
 
+    var bmiNormsHtml =
+      '<div style="display:flex;justify-content:space-between;margin-top:5px;font-size:8px;line-height:1.3">' +
+        '<span style="color:#3B8BD4;flex:1">&lt;18.5<br>Nied.</span>' +
+        '<span style="color:#1D9E75;flex:1;text-align:center">18&ndash;25<br>Norma</span>' +
+        '<span style="color:#BA7517;flex:1;text-align:center">25&ndash;30<br>Nadw.</span>' +
+        '<span style="color:#E24B4A;flex:1;text-align:center">30&ndash;35<br>Oty. I&deg;</span>' +
+        '<span style="color:#A32D2D;flex:1;text-align:center">35&ndash;40<br>Oty. II&deg;</span>' +
+        '<span style="color:#701515;flex:1;text-align:right">&gt;40<br>Oty. III&deg;</span>' +
+      '</div>';
+
     var bdGoal   = this.config.goals.find(function(g){ return g.key === 'blood_donation'; });
     var bdDays   = bdGoal ? this._daysUntil(bdGoal.date) : 999;
     var bdDone   = bdGoal && currentW <= bdGoal.weight;
@@ -433,13 +443,16 @@ class HealthCard extends HTMLElement {
       var total     = self.config.start_weight - g.weight;
       var done      = self.config.start_weight - currentW;
       var pct       = Math.min(100, Math.max(0, Math.round(done / total * 100)));
+      var achieved  = currentW <= g.weight;
       var remaining = Math.max(0, Math.round((currentW - g.weight) * 100) / 100);
       var dLeft     = self._daysUntil(g.date);
       var needed    = dLeft > 0 ? (remaining / (dLeft / 7)).toFixed(2) : '—';
       return '<div class="prog-wrap">'
-        + '<div class="prog-label"><span>' + g.label + ' &mdash; ' + g.weight + ' kg</span><span>' + pct + '%</span></div>'
+        + '<div class="prog-label"><span>' + (achieved ? '&#9989; ' : '') + g.label + ' &mdash; ' + g.weight + ' kg</span><span>' + pct + '%</span></div>'
         + '<div class="prog-bg"><div class="prog-fill" style="width:' + pct + '%;background:' + (g.color||'#1D9E75') + '"></div></div>'
-        + '<div class="prog-sub">Brakuje ' + remaining + ' kg &middot; ' + dLeft + ' dni &middot; ' + needed + ' kg/tydz.</div>'
+        + (achieved
+            ? '<div class="prog-sub" style="color:#1D9E75">Cel osi&#261;gni&#281;ty!</div>'
+            : '<div class="prog-sub">Brakuje ' + remaining + ' kg &middot; ' + dLeft + ' dni &middot; ' + needed + ' kg/tydz.</div>')
         + '</div>';
     }).join('');
 
@@ -477,8 +490,8 @@ class HealthCard extends HTMLElement {
         '<div class="metric"><div class="metric-label">Śred. BMI (mies.)</div><div class="metric-value" style="' + (monthAvgBmi !== null ? 'color:' + self._bmiCat(monthAvgBmi).color : '') + '">' + (monthAvgBmi !== null ? monthAvgBmi : '\u2014') + '</div><div class="metric-sub">' + (monthAvgBmi !== null ? self._bmiCat(monthAvgBmi).label : '') + '</div></div>' +
       '</div>' +
       '<div class="bmi-row">' +
-        '<div class="bmi-card"><div class="bmi-label">BMI na starcie</div><div class="bmi-value" style="color:' + this._bmiCat(bmiStart).color + '">' + bmiStart + '</div><div class="bmi-cat" style="color:' + this._bmiCat(bmiStart).color + '">' + this._bmiCat(bmiStart).label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + Math.min(100, Math.max(0, (bmiStart - 15) / 30 * 100)) + '%"></div></div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:8px">Zmiana BMI: <b>' + (Math.round((bmiNow-bmiStart)*10)/10) + '</b></div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:2px">Norma (BMI 25) = ' + normKg.toFixed(2) + ' kg</div></div>' +
-        '<div class="bmi-card"><div class="bmi-label">BMI teraz (wzrost ' + h + ' cm)</div><div class="bmi-value" style="color:' + bmiCat.color + '">' + bmiNow + '</div><div class="bmi-cat" style="color:' + bmiCat.color + '">' + bmiCat.label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + bmiPct + '%"></div></div></div>' +
+        '<div class="bmi-card"><div class="bmi-label">BMI na starcie</div><div class="bmi-value" style="color:' + this._bmiCat(bmiStart).color + '">' + bmiStart + '</div><div class="bmi-cat" style="color:' + this._bmiCat(bmiStart).color + '">' + this._bmiCat(bmiStart).label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + Math.min(100, Math.max(0, (bmiStart - 15) / 30 * 100)) + '%"></div></div>' + bmiNormsHtml + '<div style="font-size:11px;color:var(--secondary-text-color);margin-top:8px">Zmiana BMI: <b>' + (Math.round((bmiNow-bmiStart)*10)/10) + '</b></div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:2px">Norma (BMI 25) = ' + normKg.toFixed(2) + ' kg</div></div>' +
+        '<div class="bmi-card"><div class="bmi-label">BMI teraz (wzrost ' + h + ' cm)</div><div class="bmi-value" style="color:' + bmiCat.color + '">' + bmiNow + '</div><div class="bmi-cat" style="color:' + bmiCat.color + '">' + bmiCat.label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + bmiPct + '%"></div></div>' + bmiNormsHtml + '</div>' +
       '</div>' +
       '<h3>&#127937; Postęp do celów</h3>' +
       '<div class="prog-grid">' + goalsHtml + '</div>' +
@@ -772,7 +785,15 @@ class HealthCard extends HTMLElement {
           '<div class="bp-stat"><div class="bp-stat-label">&#216; Puls</div><div class="bp-stat-val">' + avg(pulRecent) + ' bpm</div></div>' +
           '<div class="bp-stat"><div class="bp-stat-label">Min / Max</div><div class="bp-stat-val">' + mn(pulRecent) + ' / ' + mx(pulRecent) + '</div></div>' +
         '</div>' +
-        '<div class="report-period">' + 'Okres raportu: ' + '<select id="report-period-select">' + '<option value="7">Ostatnie 7 dni</option>' + '<option value="14">Ostatnie 14 dni</option>' + '<option value="30" selected>Ostatnie 30 dni</option>' + '<option value="90">Ostatnie 90 dni</option>' + '</select>' + '</div>' + '<button class="report-btn" id="btn-gen-pdf">&#128196; Generuj raport PDF</button>' + '<h3>&#128200; Historia (90 dni)</h3>' +
+        '<div class="report-period">' + 'Okres raportu: ' + '<select id="report-period-select">' + '<option value="7">Ostatnie 7 dni</option>' + '<option value="14">Ostatnie 14 dni</option>' + '<option value="30" selected>Ostatnie 30 dni</option>' + '<option value="90">Ostatnie 90 dni</option>' + '</select>' + '</div>' + '<button class="report-btn" id="btn-gen-pdf">&#128196; Generuj raport PDF</button>' +
+        '<h3>&#128200; Historia (90 dni)</h3>' +
+        '<div class="legend">' +
+          '<span><span class="ldot" style="background:#E24B4A"></span>Skurczowe</span>' +
+          '<span><span class="ldot" style="background:#3B8BD4"></span>Rozkurczowe</span>' +
+          '<span><span class="ldot" style="background:#1D9E75"></span>Puls</span>' +
+          '<span><span class="ldot" style="background:#E24B4A;opacity:.35;border:1px dashed #E24B4A"></span>Norma 120</span>' +
+          '<span><span class="ldot" style="background:#3B8BD4;opacity:.35;border:1px dashed #3B8BD4"></span>Norma 80</span>' +
+        '</div>' +
         '<div class="chart-wrap"><canvas id="bpChart"></canvas></div>';
 
       self._drawBpChart(labels, sysDaily, diaDaily, pulDaily);
