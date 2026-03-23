@@ -911,15 +911,14 @@ class HealthCard extends HTMLElement {
         return i === 0 || m.ts - measurements[i - 1].ts >= 120000;
       });
 
-      // Krok 2: usuń duplikaty wartości — HA czasem ponownie odczytuje ostatni
-      // pomiar z urządzenia; jeśli te same sys/dia/pul pojawiły się w ciągu 6h, pomijamy
-      var lastSeen = new Map();
-      measurements = measurements.filter(function(m) {
-        var key = m.sys + '/' + m.dia + '/' + (m.pul != null ? m.pul : '');
-        var lastTs = lastSeen.get(key);
-        if (lastTs != null && m.ts - lastTs < 6 * 3600 * 1000) return false;
-        lastSeen.set(key, m.ts);
-        return true;
+      // Krok 2: usuń duplikaty wartości — HA przy restarcie/reconnect ponownie odczytuje
+      // ostatni stan z urządzenia (nawet po dniach/tygodniach). Prawdziwy pomiar prawie
+      // zawsze różni się od poprzedniego; jeśli sys/dia/pul identyczne jak bezpośrednio
+      // poprzedni wpis — to artefakt HA, nie nowy pomiar.
+      measurements = measurements.filter(function(m, i) {
+        if (i === 0) return true;
+        var prev = measurements[i - 1];
+        return m.sys !== prev.sys || m.dia !== prev.dia || m.pul !== prev.pul;
       });
 
       // Krok 3: usuń pomiary z ręcznie wykluczonych timestampów (bp_exclude_timestamps w YAML)
