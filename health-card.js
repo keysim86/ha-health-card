@@ -239,6 +239,8 @@ class HealthCard extends HTMLElement {
           font-size: 14px;
           color: var(--primary-text-color);
           padding: 16px;
+          overflow-x: hidden;
+          box-sizing: border-box;
         }
         .metric-grid {
           display: grid;
@@ -247,11 +249,11 @@ class HealthCard extends HTMLElement {
           margin-bottom: 16px;
         }
         @media (min-width: 420px) { .metric-grid { grid-template-columns: repeat(4, 1fr); } }
-        .metric { background: var(--secondary-background-color); border-radius: 12px; padding: 12px; }
-        .metric-label { font-size: 11px; color: var(--secondary-text-color); margin-bottom: 4px; }
-        .metric-value { font-size: 20px; font-weight: 500; }
+        .metric { background: var(--secondary-background-color); border-radius: 12px; padding: 12px; min-width: 0; overflow: hidden; }
+        .metric-label { font-size: 11px; color: var(--secondary-text-color); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .metric-value { font-size: clamp(14px, 4vw, 20px); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .metric-value.good { color: #1D9E75; }
-        .metric-sub { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; }
+        .metric-sub { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .bmi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
         .bmi-card { background: var(--secondary-background-color); border-radius: 12px; padding: 12px; }
         .bmi-label { font-size: 11px; color: var(--secondary-text-color); margin-bottom: 4px; }
@@ -301,28 +303,30 @@ class HealthCard extends HTMLElement {
         .empty-page .icon { font-size: 48px; margin-bottom: 12px; }
         .empty-page .title { font-size: 16px; font-weight: 500; color: var(--primary-text-color); margin-bottom: 8px; }
         .bp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
-        .bp-metric { background: var(--secondary-background-color); border-radius: 12px; padding: 12px; text-align: center; }
+        .bp-metric { background: var(--secondary-background-color); border-radius: 12px; padding: 12px; text-align: center; min-width: 0; }
         .bp-label { font-size: 11px; color: var(--secondary-text-color); margin-bottom: 4px; }
-        .bp-value { font-size: 28px; font-weight: 500; }
-        .bp-unit  { font-size: 13px; color: var(--secondary-text-color); margin-left: 2px; }
+        .bp-value { font-size: clamp(18px, 6vw, 28px); font-weight: 500; }
+        .bp-unit  { font-size: clamp(10px, 2.5vw, 13px); color: var(--secondary-text-color); margin-left: 2px; }
         .bp-alert { border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
         .bp-alert.ok      { background:#E1F5EE; color:#0F6E56; border:0.5px solid #1D9E75; }
         .bp-alert.warn    { background:#FAEEDA; color:#854F0B; border:0.5px solid #BA7517; }
         .bp-alert.danger  { background:#FCEBEB; color:#A32D2D; border:0.5px solid #E24B4A; }
-        .bp-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px; }
-        .bp-stat  { background: var(--secondary-background-color); border-radius: 10px; padding: 10px; text-align: center; }
-        .bp-stat-label { font-size: 10px; color: var(--secondary-text-color); margin-bottom: 3px; }
+        .bp-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+        @media (min-width: 420px) { .bp-stats { grid-template-columns: repeat(3, 1fr); } }
+        .bp-stat  { background: var(--secondary-background-color); border-radius: 10px; padding: 10px; text-align: center; min-width: 0; }
+        .bp-stat-label { font-size: 10px; color: var(--secondary-text-color); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .bp-stat-val   { font-size: 15px; font-weight: 500; }
         .report-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: 0.5px solid var(--color-border-secondary, rgba(255,255,255,0.2)); background: var(--secondary-background-color); color: var(--primary-text-color); font-size: 13px; cursor: pointer; font-family: inherit; margin-bottom: 16px; }
         .report-btn:hover { background: var(--primary-color, #1D9E75); color: #fff; }
         .report-period { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; color: var(--secondary-text-color); }
         .report-period select { background: var(--secondary-background-color); color: var(--primary-text-color); border: 0.5px solid var(--color-border-secondary, rgba(255,255,255,0.2)); border-radius: 8px; padding: 5px 10px; font-size: 13px; font-family: inherit; cursor: pointer; }
-        .de-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
+        .de-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        @media (min-width: 400px) { .de-grid { grid-template-columns: repeat(3, 1fr); } }
         .de-grid-1 { display: grid; grid-template-columns: 1fr; max-width: 180px; margin-bottom: 14px; }
-        .de-field { background: var(--secondary-background-color); border-radius: 12px; padding: 14px 10px 10px; text-align: center; }
+        .de-field { background: var(--secondary-background-color); border-radius: 12px; padding: 14px 10px 10px; text-align: center; min-width: 0; }
         .de-label { font-size: 11px; color: var(--secondary-text-color); margin-bottom: 10px; }
-        .de-label small { display: block; font-size: 10px; margin-top: 2px; }
-        .de-input { background: transparent; border: none; border-bottom: 1.5px solid rgba(255,255,255,0.2); color: var(--primary-text-color); font-size: 30px; font-weight: 500; width: 100%; text-align: center; padding: 4px 0; font-family: inherit; -moz-appearance: textfield; }
+        .de-label small { display: block; font-size: 10px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .de-input { background: transparent; border: none; border-bottom: 1.5px solid rgba(255,255,255,0.2); color: var(--primary-text-color); font-size: clamp(20px, 7vw, 30px); font-weight: 500; width: 100%; text-align: center; padding: 4px 0; font-family: inherit; -moz-appearance: textfield; }
         .de-input::-webkit-outer-spin-button, .de-input::-webkit-inner-spin-button { -webkit-appearance: none; }
         .de-input:focus { outline: none; border-bottom-color: var(--primary-color, #1D9E75); }
         .de-input.invalid { border-bottom-color: #E24B4A; color: #E24B4A; }
@@ -1013,6 +1017,8 @@ class HealthCard extends HTMLElement {
 
       var weightState = self._hass.states[self.config.entity_id];
       var weightStr   = weightState ? parseFloat(weightState.state).toFixed(1) : '\u2014';
+      var bmiVal      = weightState ? self._bmi(parseFloat(weightState.state)) : null;
+      var bmiStr      = bmiVal !== null ? bmiVal + ' (' + self._bmiCat(bmiVal).label + ')' : '\u2014';
 
       var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8">'
         + '<title>Raport ci\u015bnienia \u2014 ' + self.config.report_name + '</title>'
@@ -1042,6 +1048,7 @@ class HealthCard extends HTMLElement {
         + '<tr><td>Imi\u0119 i nazwisko:</td><td>' + self.config.report_name + '</td></tr>'
         + (ageStr ? '<tr><td>Data urodzenia:</td><td>' + ageStr + '</td></tr>' : '')
         + '<tr><td>Wzrost / Waga:</td><td>' + self._heightCm() + ' cm / ' + weightStr + ' kg</td></tr>'
+        + '<tr><td>BMI:</td><td>' + bmiStr + '</td></tr>'
         + '<tr><td>Okres pomiar\u00f3w:</td><td>' + startStr + ' \u2014 ' + endStr + '</td></tr>'
         + '<tr><td>Urz\u0105dzenie:</td><td>' + self.config.report_device + '</td></tr>'
         + '</tbody></table>'
