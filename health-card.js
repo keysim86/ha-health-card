@@ -35,6 +35,7 @@ class HealthCard extends HTMLElement {
       report_name:      config.report_name      || 'Imię Nazwisko',
       report_birthdate: config.report_birthdate || '',
       report_device:    config.report_device    || 'Ciśnieniomierz',
+      bp_exclude_timestamps: Array.isArray(config.bp_exclude_timestamps) ? config.bp_exclude_timestamps : [],
 
     };
   }
@@ -873,6 +874,21 @@ class HealthCard extends HTMLElement {
         lastSeen.set(key, m.ts);
         return true;
       });
+
+      // Krok 3: usuń pomiary z ręcznie wykluczonych timestampów (bp_exclude_timestamps w YAML)
+      // Format: "YYYY-MM-DD HH:MM" — dopasowanie z dokładnością do minuty
+      var excludeSet = new Set((self.config.bp_exclude_timestamps || []).map(function(s) {
+        return s.trim().substring(0, 16); // "YYYY-MM-DD HH:MM"
+      }));
+      if (excludeSet.size > 0) {
+        measurements = measurements.filter(function(m) {
+          var d = new Date(m.ts);
+          var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+          var label = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+                    + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+          return !excludeSet.has(label);
+        });
+      }
 
       var sysList = measurements.map(function(m) { return m.sys; });
       var diaList = measurements.map(function(m) { return m.dia; });
