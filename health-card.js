@@ -37,19 +37,6 @@ class HealthCard extends HTMLElement {
       report_device:    config.report_device    || 'Ciśnieniomierz',
 
     };
-    // Załaduj nadpisania z localStorage
-    try {
-      var ov = JSON.parse(localStorage.getItem('health-card-settings') || '{}');
-      if (ov.bp_systolic)        this.config.bp_systolic        = ov.bp_systolic;
-      if (ov.bp_diastolic)       this.config.bp_diastolic       = ov.bp_diastolic;
-      if (ov.bp_pulse)           this.config.bp_pulse           = ov.bp_pulse;
-      if (ov.bp_systolic_now)    this.config.bp_systolic_now    = ov.bp_systolic_now;
-      if (ov.bp_diastolic_now)   this.config.bp_diastolic_now   = ov.bp_diastolic_now;
-      if (ov.bp_pulse_now)       this.config.bp_pulse_now       = ov.bp_pulse_now;
-      if (ov.height_cm_entity !== undefined) this.config.height_cm_entity = ov.height_cm_entity || null;
-      if (ov.height_cm)          this.config.height_cm          = ov.height_cm;
-      if (ov.bp_enabled !== undefined) this.config.bp_enabled   = ov.bp_enabled;
-    } catch(e) {}
   }
 
   set hass(hass) {
@@ -325,22 +312,18 @@ class HealthCard extends HTMLElement {
         .report-btn:hover { background: var(--primary-color, #1D9E75); color: #fff; }
         .report-period { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; color: var(--secondary-text-color); }
         .report-period select { background: var(--secondary-background-color); color: var(--primary-text-color); border: 0.5px solid var(--color-border-secondary, rgba(255,255,255,0.2)); border-radius: 8px; padding: 5px 10px; font-size: 13px; font-family: inherit; cursor: pointer; }
-        .setting-group { background: var(--secondary-background-color); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
-        .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; }
-        .setting-label { font-size: 13px; color: var(--primary-text-color); flex: 1; min-width: 0; }
-        .setting-label small { display: block; font-size: 10px; color: var(--secondary-text-color); margin-top: 1px; }
-        .setting-input { background: var(--card-background-color, #1c1c1c); color: var(--primary-text-color); border: 0.5px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 6px 10px; font-size: 12px; font-family: inherit; width: 200px; min-width: 0; }
-        .setting-input:focus { outline: none; border-color: var(--primary-color, #1D9E75); }
-        .setting-input.invalid { border-color: #E24B4A; background: rgba(226,75,74,0.08); }
-        .toggle { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
-        .toggle input { opacity: 0; width: 0; height: 0; }
-        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.15); border-radius: 24px; transition: .3s; }
-        .toggle-slider:before { position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .3s; }
-        input:checked + .toggle-slider { background: var(--primary-color, #1D9E75); }
-        input:checked + .toggle-slider:before { transform: translateX(20px); }
-        .settings-status { font-size: 12px; margin-top: 8px; padding: 8px 12px; border-radius: 8px; display: none; }
-        .settings-status.ok   { display: block; background: #E1F5EE; color: #0F6E56; }
-        .settings-status.err  { display: block; background: #FCEBEB; color: #A32D2D; }
+        .de-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
+        .de-grid-1 { display: grid; grid-template-columns: 1fr; max-width: 180px; margin-bottom: 14px; }
+        .de-field { background: var(--secondary-background-color); border-radius: 12px; padding: 14px 10px 10px; text-align: center; }
+        .de-label { font-size: 11px; color: var(--secondary-text-color); margin-bottom: 10px; }
+        .de-label small { display: block; font-size: 10px; margin-top: 2px; }
+        .de-input { background: transparent; border: none; border-bottom: 1.5px solid rgba(255,255,255,0.2); color: var(--primary-text-color); font-size: 30px; font-weight: 500; width: 100%; text-align: center; padding: 4px 0; font-family: inherit; -moz-appearance: textfield; }
+        .de-input::-webkit-outer-spin-button, .de-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+        .de-input:focus { outline: none; border-bottom-color: var(--primary-color, #1D9E75); }
+        .de-input.invalid { border-bottom-color: #E24B4A; color: #E24B4A; }
+        .de-status { font-size: 12px; margin-top: 8px; padding: 8px 12px; border-radius: 8px; display: none; }
+        .de-status.ok  { display: block; background: #E1F5EE; color: #0F6E56; }
+        .de-status.err { display: block; background: #FCEBEB; color: #A32D2D; }
 
       </style>
       <ha-card>
@@ -349,7 +332,7 @@ class HealthCard extends HTMLElement {
             <button class="nav-btn active" data-page="weight">&#9878; Waga</button>
             <button class="nav-btn" data-page="pressure">&#128138; Ci&#347;nienie</button>
             <button class="nav-btn" data-page="activity">&#127939; Aktywno&#347;&#263;</button>
-            <button class="nav-btn" data-page="settings">&#9881; Konfiguracja</button>
+            <button class="nav-btn" data-page="settings">&#9998; Wprowad&#378; dane</button>
           </div>
           <div id="content"><div class="loading">Ładowanie danych...</div></div>
           <div id="page-pressure" class="nav-page" style="display:none"></div>
@@ -515,124 +498,99 @@ class HealthCard extends HTMLElement {
   _renderSettings() {
     var page = this.shadowRoot.getElementById('page-settings');
     if (!page) return;
+    var self = this;
     var cfg  = this.config;
-    var row  = function(label, sub, id, val, type) {
-      return '<div class="setting-row">'
-        + '<div class="setting-label">' + label + (sub ? '<small>' + sub + '</small>' : '') + '</div>'
-        + '<input class="setting-input" id="' + id + '" type="' + (type || 'text') + '" value="' + (val || '') + '">'
+
+    var val = function(entityId) {
+      var s = self._hass && self._hass.states[entityId];
+      return (s && !isNaN(parseFloat(s.state))) ? Math.round(parseFloat(s.state)) : '';
+    };
+
+    var field = function(id, label, unit, entityId, min, max) {
+      return '<div class="de-field">'
+        + '<div class="de-label">' + label + '<small>' + unit + '</small></div>'
+        + '<input class="de-input" id="' + id + '" type="number" min="' + min + '" max="' + max + '" value="' + val(entityId) + '" placeholder="—">'
         + '</div>';
     };
 
     page.innerHTML =
       '<h3>&#128138; Ci&#347;nienie krwi</h3>'
-      + '<div class="setting-group">'
-      +   '<div class="setting-row">'
-      +     '<div class="setting-label">Aktywna zak&#322;adka Ci&#347;nienie</div>'
-      +     '<label class="toggle"><input type="checkbox" id="s-bp-enabled"' + (cfg.bp_enabled ? ' checked' : '') + '><span class="toggle-slider"></span></label>'
-      +   '</div>'
+      + '<div class="de-grid">'
+      +   field('de-sys', 'Skurczowe',   'mmHg', cfg.bp_systolic_now,  60,  250)
+      +   field('de-dia', 'Rozkurczowe', 'mmHg', cfg.bp_diastolic_now, 40,  150)
+      +   field('de-pul', 'Puls',        'bpm',  cfg.bp_pulse_now,     30,  200)
       + '</div>'
-      + '<h3>&#128138; Sensory historii (sensor.*)</h3>'
-      + '<div class="setting-group">'
-      +   row('Skurczowe', 'sensor.* &mdash; u\u017cywany do wykres\u00f3w i PDF', 's-bp-systolic',  cfg.bp_systolic)
-      +   row('Rozkurczowe', 'sensor.* &mdash; u\u017cywany do wykres\u00f3w i PDF', 's-bp-diastolic', cfg.bp_diastolic)
-      +   row('Puls',        'sensor.* &mdash; u\u017cywany do wykres\u00f3w i PDF', 's-bp-pulse',     cfg.bp_pulse)
-      + '</div>'
-      + '<h3>&#128138; Aktualna warto\u015b\u0107 (input_number.*)</h3>'
-      + '<div class="setting-group">'
-      +   row('Skurczowe teraz', 'input_number.* &mdash; wy\u015bwietlane jako bie\u017c\u0105ca warto\u015b\u0107', 's-bp-systolic-now',  cfg.bp_systolic_now)
-      +   row('Rozkurczowe teraz', 'input_number.*', 's-bp-diastolic-now', cfg.bp_diastolic_now)
-      +   row('Puls teraz',        'input_number.*', 's-bp-pulse-now',     cfg.bp_pulse_now)
-      + '</div>'
+      + '<button class="report-btn" id="de-save-bp">&#128190; Zapisz ci&#347;nienie</button>'
+      + '<div class="de-status" id="de-status-bp"></div>'
       + '<h3>&#128207; Wzrost</h3>'
-      + '<div class="setting-group">'
-      +   row('Czujnik / input_number wzrostu', 'np. input_number.wzrost_grzegorz', 's-height-entity', cfg.height_cm_entity)
-      +   row('Wzrost r\u0119cznie (cm)', 'fallback gdy brak encji', 's-height-cm', cfg.height_cm, 'number')
+      + '<div class="de-grid-1">'
+      +   field('de-height', 'Wzrost', 'cm', cfg.height_cm_entity, 100, 250)
       + '</div>'
-      + '<button class="report-btn" id="settings-save">&#128190; Zapisz ustawienia</button>'
-      + '<div class="settings-status" id="settings-status"></div>';
+      + '<button class="report-btn" id="de-save-height">&#128190; Zapisz wzrost</button>'
+      + '<div class="de-status" id="de-status-height"></div>';
 
-    var self = this;
-    page.querySelector('#settings-save').addEventListener('click', function() { self._saveSettings(); });
+    page.querySelector('#de-save-bp').addEventListener('click',     function() { self._saveBloodPressure(); });
+    page.querySelector('#de-save-height').addEventListener('click', function() { self._saveHeight(); });
   }
 
-  _saveSettings() {
+  _saveBloodPressure() {
     var r   = this.shadowRoot;
-    var get = function(id) { var el = r.getElementById(id); return el ? el.value.trim() : ''; };
-    var chk = function(id) { var el = r.getElementById(id); return el ? el.checked : true; };
-    var st  = r.getElementById('settings-status');
-    var highlight = function(ids, invalid) {
-      ids.forEach(function(id) {
-        var el = r.getElementById(id);
-        if (el) el.classList.toggle('invalid', invalid);
-      });
-    };
-    var err = function(msg, sensorIds, nowIds) {
-      if (st) { st.textContent = msg; st.className = 'settings-status err'; }
-      if (sensorIds) highlight(sensorIds, true);
-      if (nowIds)    highlight(nowIds,    true);
-    };
+    var num = function(id) { var el = r.getElementById(id); return el ? parseInt(el.value) : NaN; };
+    var st  = r.getElementById('de-status-bp');
 
-    var sys  = get('s-bp-systolic'),     dia  = get('s-bp-diastolic'),     pul  = get('s-bp-pulse');
-    var sysN = get('s-bp-systolic-now'), diaN = get('s-bp-diastolic-now'), pulN = get('s-bp-pulse-now');
+    var sys = num('de-sys'), dia = num('de-dia'), pul = num('de-pul');
 
     // Wyczyść poprzednie podświetlenia
-    highlight(['s-bp-systolic','s-bp-diastolic','s-bp-pulse','s-bp-systolic-now','s-bp-diastolic-now','s-bp-pulse-now'], false);
+    ['de-sys','de-dia','de-pul'].forEach(function(id) {
+      var el = r.getElementById(id); if (el) el.classList.remove('invalid');
+    });
 
-    // Walidacja: sensory historii — albo wszystkie, albo żaden
-    var sensorCount = [sys, dia, pul].filter(Boolean).length;
-    if (sensorCount > 0 && sensorCount < 3) {
-      err('\u26a0 Wype\u0142nij wszystkie trzy sensory historii lub zostaw wszystkie puste.',
-        ['s-bp-systolic','s-bp-diastolic','s-bp-pulse'].filter(function(id) { return !get(id); }));
+    var missing = [];
+    if (isNaN(sys)) missing.push('de-sys');
+    if (isNaN(dia)) missing.push('de-dia');
+    if (isNaN(pul)) missing.push('de-pul');
+    if (missing.length) {
+      missing.forEach(function(id) { var el = r.getElementById(id); if (el) el.classList.add('invalid'); });
+      if (st) { st.textContent = '\u26a0 Wype\u0142nij wszystkie trzy warto\u015bci.'; st.className = 'de-status err'; }
       return;
     }
 
-    // Walidacja: input_number — albo wszystkie, albo żaden
-    var nowCount = [sysN, diaN, pulN].filter(Boolean).length;
-    if (nowCount > 0 && nowCount < 3) {
-      err('\u26a0 Wype\u0142nij wszystkie trzy encje aktualnej warto\u015bci lub zostaw wszystkie puste.',
-        null,
-        ['s-bp-systolic-now','s-bp-diastolic-now','s-bp-pulse-now'].filter(function(id) { return !get(id); }));
+    var cfg  = this.config;
+    var self = this;
+    Promise.all([
+      this._hass.callService('input_number', 'set_value', { entity_id: cfg.bp_systolic_now,  value: sys }),
+      this._hass.callService('input_number', 'set_value', { entity_id: cfg.bp_diastolic_now, value: dia }),
+      this._hass.callService('input_number', 'set_value', { entity_id: cfg.bp_pulse_now,     value: pul }),
+    ]).then(function() {
+      if (st) { st.textContent = '\u2713 Zapisano: ' + sys + '/' + dia + ' mmHg, puls ' + pul + ' bpm'; st.className = 'de-status ok'; }
+      // Odśwież zakładkę Ciśnienie
+      self._pressureLoaded = false;
+    }).catch(function(e) {
+      if (st) { st.textContent = '\u26a0 B\u0142\u0105d: ' + e.message; st.className = 'de-status err'; }
+    });
+  }
+
+  _saveHeight() {
+    var r   = this.shadowRoot;
+    var el  = r.getElementById('de-height');
+    var st  = r.getElementById('de-status-height');
+    var val = el ? parseInt(el.value) : NaN;
+
+    if (el) el.classList.remove('invalid');
+    if (isNaN(val) || val < 100 || val > 250) {
+      if (el) el.classList.add('invalid');
+      if (st) { st.textContent = '\u26a0 Podaj prawid\u0142ow\u0105 warto\u015b\u0107 (100\u2013250 cm).'; st.className = 'de-status err'; }
       return;
     }
 
-    var ov = {
-      bp_enabled:       chk('s-bp-enabled'),
-      bp_systolic:      sys,
-      bp_diastolic:     dia,
-      bp_pulse:         pul,
-      bp_systolic_now:  sysN,
-      bp_diastolic_now: diaN,
-      bp_pulse_now:     pulN,
-      height_cm_entity: get('s-height-entity'),
-      height_cm:        parseInt(get('s-height-cm')) || this.config.height_cm,
-    };
-
-    try {
-      localStorage.setItem('health-card-settings', JSON.stringify(ov));
-    } catch(e) {
-      var st = r.getElementById('settings-status');
-      if (st) { st.textContent = 'B\u0142\u0105d zapisu: ' + e.message; st.className = 'settings-status err'; }
-      return;
-    }
-
-    // Zastosuj natychmiast
-    this.config.bp_enabled       = ov.bp_enabled;
-    this.config.bp_systolic      = ov.bp_systolic      || this.config.bp_systolic;
-    this.config.bp_diastolic     = ov.bp_diastolic     || this.config.bp_diastolic;
-    this.config.bp_pulse         = ov.bp_pulse         || this.config.bp_pulse;
-    this.config.bp_systolic_now  = ov.bp_systolic_now  || this.config.bp_systolic_now;
-    this.config.bp_diastolic_now = ov.bp_diastolic_now || this.config.bp_diastolic_now;
-    this.config.bp_pulse_now     = ov.bp_pulse_now     || this.config.bp_pulse_now;
-    this.config.height_cm_entity = ov.height_cm_entity || null;
-    this.config.height_cm        = ov.height_cm;
-
-    // Wymuś ponowne załadowanie zakładki Ciśnienie
-    this._pressureLoaded = false;
-
-    this._applyNavVisibility();
-
-    var st = r.getElementById('settings-status');
-    if (st) { st.textContent = '\u2713 Ustawienia zapisane'; st.className = 'settings-status ok'; }
+    this._hass.callService('input_number', 'set_value', {
+      entity_id: this.config.height_cm_entity,
+      value:     val,
+    }).then(function() {
+      if (st) { st.textContent = '\u2713 Zapisano wzrost: ' + val + ' cm'; st.className = 'de-status ok'; }
+    }).catch(function(e) {
+      if (st) { st.textContent = '\u26a0 B\u0142\u0105d: ' + e.message; st.className = 'de-status err'; }
+    });
   }
 
   async _loadPressureData() {
