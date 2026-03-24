@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.6] - 2026-03-24
+
+### Zmieniono
+- Workflow najpierw pushuje tag na GitHub przed stworzeniem release
+
 ## [1.1.5] - 2026-03-24
 
 ### Zmieniono
