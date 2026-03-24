@@ -24,7 +24,9 @@ jobs:
         env:
           FORGEJO_TOKEN: ${{ github.token }}
         run: |
-          BODY=$(cat CHANGELOG.md | jq -Rs .)
+          VERSION_NO="${{ steps.version.outputs.VERSION }}"
+          VERSION_NO="${VERSION_NO#v}"
+          BODY=$(awk "/^## \[$VERSION_NO\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md | jq -Rs .)
           RESPONSE=$(curl -s -X POST \
             "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases" \
             -H "Authorization: token $FORGEJO_TOKEN" \
@@ -40,7 +42,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          BODY=$(cat CHANGELOG.md | jq -Rs .)
+          VERSION_NO="${{ steps.version.outputs.VERSION }}"
+          VERSION_NO="${VERSION_NO#v}"
+          BODY=$(awk "/^## \[$VERSION_NO\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md | jq -Rs .)
           RESPONSE=$(curl -s -X POST \
             "https://api.github.com/repos/keysim86/ha-health-card/releases" \
             -H "Authorization: token $GH_TOKEN" \
