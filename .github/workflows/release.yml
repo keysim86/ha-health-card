@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   release:
+    if: ${{ !contains(github.server_url, 'github.com') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,13 +20,26 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: Create Forgejo Release
         uses: softprops/action-gh-release@v2
         with:
           name: "Health Card ${{ steps.version.outputs.VERSION }}"
           body_path: CHANGELOG.md
-          files: |
-            health-card.js
+          files: health-card.js
           generate_release_notes: false
           draft: false
           prerelease: false
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          gh release create "${{ steps.version.outputs.VERSION }}" \
+            --repo "keysim86/ha-health-card" \
+            --title "Health Card ${{ steps.version.outputs.VERSION }}" \
+            --notes-file CHANGELOG.md \
+            health-card.js \
+          || gh release upload "${{ steps.version.outputs.VERSION }}" \
+            --repo "keysim86/ha-health-card" \
+            --clobber \
+            health-card.js
