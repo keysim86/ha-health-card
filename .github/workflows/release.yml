@@ -50,7 +50,13 @@ jobs:
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"target_commitish\": \"main\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY}")
+          echo "GitHub API response: $RESPONSE"
           RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
+          echo "Release ID: $RELEASE_ID"
+          if [ "$RELEASE_ID" = "null" ] || [ -z "$RELEASE_ID" ]; then
+            echo "ERROR: Failed to create GitHub release"
+            exit 1
+          fi
           curl -s -X POST \
             "https://uploads.github.com/repos/keysim86/ha-health-card/releases/$RELEASE_ID/assets?name=health-card.js" \
             -H "Authorization: token $GH_TOKEN" \
