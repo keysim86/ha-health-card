@@ -38,13 +38,6 @@ jobs:
             -H "Authorization: token $FORGEJO_TOKEN" \
             -F "attachment=@health-card.js"
 
-      - name: Push tag to GitHub
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          git remote add github https://x-access-token:$GH_TOKEN@github.com/keysim86/ha-health-card.git
-          git push github refs/tags/${{ steps.version.outputs.VERSION }}
-
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
@@ -56,7 +49,7 @@ jobs:
             "https://api.github.com/repos/keysim86/ha-health-card/releases" \
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY}")
+            -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"target_commitish\": \"main\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY}")
           RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
           curl -s -X POST \
             "https://uploads.github.com/repos/keysim86/ha-health-card/releases/$RELEASE_ID/assets?name=health-card.js" \
