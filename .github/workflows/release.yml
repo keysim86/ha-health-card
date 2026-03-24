@@ -49,7 +49,7 @@ jobs:
             "https://api.github.com/repos/keysim86/ha-health-card/releases" \
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"target_commitish\": \"main\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY}")
+            -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY}")
           echo "GitHub API response: $RESPONSE"
           RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
           echo "Release ID: $RELEASE_ID"
