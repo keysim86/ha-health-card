@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.2] - 2026-03-24
+
+### Zmieniono
+- Dodano workflow automatycznego release (Forgejo → GitHub)
+- Dodano LICENSE, .gitignore
+
 ## [1.1.1] - 2026-03-23
 
 ### Dodano
