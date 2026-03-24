@@ -6,7 +6,8 @@
 
 [![Release](https://img.shields.io/github/v/release/keysim86/ha-health-card?style=flat-square)](https://github.com/keysim86/ha-health-card/releases/latest)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://github.com/keysim86/ha-health-card)
-[![HA](https://img.shields.io/badge/Home%20Assistant-2023.0%2B-blue?style=flat-square)](https://www.home-assistant.io/)
+[![HA](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue?style=flat-square)](https://www.home-assistant.io/)
+[![License](https://img.shields.io/github/license/keysim86/ha-home-dashboard-card.svg)](LICENSE)
 
 > Karta Lovelace do monitorowania zdrowia — waga, ciśnienie krwi, aktywność, siatki centylowe. Dane z Home Assistant, raporty PDF.
 

@@ -21,14 +21,20 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Create Forgejo Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "Health Card ${{ steps.version.outputs.VERSION }}"
-          body_path: CHANGELOG.md
-          files: health-card.js
-          generate_release_notes: false
-          draft: false
-          prerelease: false
+        env:
+          FORGEJO_TOKEN: ${{ github.token }}
+        run: |
+          BODY=$(cat CHANGELOG.md | jq -Rs .)
+          RESPONSE=$(curl -s -X POST \
+            "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases" \
+            -H "Authorization: token $FORGEJO_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY}")
+          RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
+          curl -s -X POST \
+            "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases/$RELEASE_ID/assets" \
+            -H "Authorization: token $FORGEJO_TOKEN" \
+            -F "attachment=@health-card.js"
 
       - name: Create GitHub Release
         env:
