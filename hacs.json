@@ -2,6 +2,7 @@
   "name": "Health Card",
   "description": "Karta zdrowia z wagą, BMI, bilansami miesięcznymi/tygodniowymi i wykresem historii",
   "render_readme": true,
+  "content_in_root": true,
   "filename": "health-card.js",
-  "homeassistant": "2023.0.0"
+  "homeassistant": "2024.1.0"
 }

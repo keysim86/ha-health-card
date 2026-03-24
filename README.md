@@ -153,5 +153,6 @@ Jeden plik `health-card.js` obsługuje wszystkich — każda osoba konfiguruje w
 
 ## Wymagania
 
-- Home Assistant 2023.0.0+
+- Home Assistant 2024.1.0+
+- HACS 1.34.0+
 - Encje wagi i ciśnienia muszą mieć `state_class: measurement` aby były dostępne w long-term statistics HA
