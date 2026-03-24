@@ -40,12 +40,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          gh release create "${{ steps.version.outputs.VERSION }}" \
-            --repo "keysim86/ha-health-card" \
-            --title "Health Card ${{ steps.version.outputs.VERSION }}" \
-            --notes-file CHANGELOG.md \
-            health-card.js \
-          || gh release upload "${{ steps.version.outputs.VERSION }}" \
-            --repo "keysim86/ha-health-card" \
-            --clobber \
-            health-card.js
+          BODY=$(cat CHANGELOG.md | jq -Rs .)
+          RESPONSE=$(curl -s -X POST \
+            "https://api.github.com/repos/keysim86/ha-health-card/releases" \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY}")
+          RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
+          curl -s -X POST \
+            "https://uploads.github.com/repos/keysim86/ha-health-card/releases/$RELEASE_ID/assets?name=health-card.js" \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/javascript" \
+            --data-binary "@health-card.js"
