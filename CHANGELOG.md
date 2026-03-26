@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.9] - 2026-03-26
+
+### Dodano
+- Wyświetlanie czasu ostatniego pomiaru ciśnienia na stronie ciśnienia
+
 ## [1.1.6] - 2026-03-24
 
 ### Zmieniono
