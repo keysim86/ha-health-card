@@ -312,6 +312,7 @@ class HealthCard extends HTMLElement {
         .bp-label { font-size: 11px; color: var(--secondary-text-color); margin-bottom: 4px; }
         .bp-value { font-size: clamp(18px, 6vw, 28px); font-weight: 500; }
         .bp-unit  { font-size: clamp(10px, 2.5vw, 13px); color: var(--secondary-text-color); margin-left: 2px; }
+        .bp-last-measured { text-align: center; font-size: 0.82em; color: var(--secondary-text-color, #888); margin: 4px 0 12px; }
         .bp-alert { border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
         .bp-alert.ok      { background:#E1F5EE; color:#0F6E56; border:0.5px solid #1D9E75; }
         .bp-alert.warn    { background:#FAEEDA; color:#854F0B; border:0.5px solid #BA7517; }
@@ -972,6 +973,18 @@ class HealthCard extends HTMLElement {
       var pulNow = pulStateNow ? Math.round(parseFloat(pulStateNow.state)) : '—';
       var catNow = catState ? catState.state : null;
 
+      // Ostatni pomiar — najnowszy timestamp spośród trzech sensorów
+      var lastTs = null;
+      [sysStateNow, diaStateNow, pulStateNow].forEach(function(s) {
+        if (s && s.last_changed) {
+          var t = new Date(s.last_changed);
+          if (!lastTs || t > lastTs) lastTs = t;
+        }
+      });
+      var lastMeasured = lastTs
+        ? lastTs.toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : '—';
+
       // Statystyki z ostatnich 30 dni
       var cutDate = new Date(now); cutDate.setDate(cutDate.getDate() - 30);
       var cutStr  = cutDate.toLocaleDateString('sv-SE');
@@ -1033,6 +1046,7 @@ class HealthCard extends HTMLElement {
           '<div class="bp-metric"><div class="bp-label">Rozkurczowe</div><div class="bp-value" style="color:' + diaColor + '">' + diaNow + '<span class="bp-unit">mmHg</span></div></div>' +
           '<div class="bp-metric"><div class="bp-label">Puls</div><div class="bp-value" style="color:' + pulColor + '">' + pulNow + '<span class="bp-unit">bpm</span></div></div>' +
         '</div>' +
+        '<div class="bp-last-measured">&#128336; Ostatni pomiar: <strong>' + lastMeasured + '</strong></div>' +
         '<h3>&#128202; Statystyki (30 dni)</h3>' +
         '<div class="bp-stats">' +
           '<div class="bp-stat"><div class="bp-stat-label">&#216; Skurczowe</div><div class="bp-stat-val">' + avg(sysRecent) + ' mmHg</div></div>' +
