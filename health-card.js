@@ -385,7 +385,11 @@ class HealthCard extends HTMLElement {
     this._monthlyBmi = monthlyAvg.map(function(d) { return [d[0], self._bmi(d[1])]; });
 
     var currentW    = weights[weights.length - 1];
-    var currentDate = labels[labels.length - 1];
+    // Data ostatniego pomiaru — z last_changed encji (rzeczywisty pomiar), fallback na ostatnią datę ze statystyk
+    var lastChangedRaw = this._hass && this._hass.states[this.config.entity_id] && this._hass.states[this.config.entity_id].last_changed;
+    var currentDate = lastChangedRaw
+      ? new Date(lastChangedRaw).toLocaleDateString('sv-SE')
+      : labels[labels.length - 1];
     var totalLoss   = Math.round((this.config.start_weight - currentW) * 100) / 100;
     var days        = Math.round((new Date(currentDate) - new Date(this.config.start_date)) / 86400000);
     var weeklyAvg   = Math.round(totalLoss / (days / 7) * 100) / 100;
