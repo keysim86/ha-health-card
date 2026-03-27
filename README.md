@@ -17,7 +17,7 @@
 
 | Zakładka | Opis |
 |---|---|
-| ⚖ Waga | Waga ciała, BMI, bilanse bieżące, postęp do celów, wykresy historii i BMI |
+| ⚖ Waga | Waga ciała, BMI, bilanse bieżące, postęp do celów, wykresy historii i BMI, data ostatniego pomiaru |
 | 💊 Ciśnienie | Skurczowe, rozkurczowe, puls, statystyki, wykres 90 dni, raport PDF |
 | 🏃 Aktywność | Kroki i kalorie — dzienne wykresy słupkowe, cel dzienny, statystyki |
 | 📈 Siatki centylowe | BMI i wzrost dziecka na tle norm WHO 2007, strefy centylowe |

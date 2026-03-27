@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.0] - 2026-03-27
+
+### Fixed
+- Zakładka Waga: data w kafelku "Aktualnie" pochodzi z `last_changed` encji HA (rzeczywisty moment pomiaru) zamiast ostatniej daty ze statystyk
+
 ## [1.1.9] - 2026-03-26
 
 ### Dodano
