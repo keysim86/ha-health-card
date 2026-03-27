@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.1] - 2026-03-27
+
+### Fixed
+- Zakładka Waga: data ostatniego pomiaru wyznaczana z ostatniej zmiany wartości w statystykach (restart-safe) — poprzednie podejście przez `last_changed` resetowało się po restarcie HA
+
 ## [1.2.0] - 2026-03-27
 
 ### Fixed
