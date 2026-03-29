@@ -27,11 +27,12 @@ jobs:
           VERSION_NO="${{ steps.version.outputs.VERSION }}"
           VERSION_NO="${VERSION_NO#v}"
           BODY=$(awk "/^## \[$VERSION_NO\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md | jq -Rs .)
+          if echo "$VERSION_NO" | grep -q '-'; then PRERELEASE=true; else PRERELEASE=false; fi
           RESPONSE=$(curl -s -X POST \
             "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases" \
             -H "Authorization: token $FORGEJO_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY}")
+            -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY, \"prerelease\": $PRERELEASE}")
           RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
           curl -s -X POST \
             "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases/$RELEASE_ID/assets" \
@@ -45,11 +46,12 @@ jobs:
           VERSION_NO="${{ steps.version.outputs.VERSION }}"
           VERSION_NO="${VERSION_NO#v}"
           BODY=$(awk "/^## \[$VERSION_NO\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md | jq -Rs .)
+          if echo "$VERSION_NO" | grep -q '-'; then PRERELEASE=true; else PRERELEASE=false; fi
           RESPONSE=$(curl -s -X POST \
             "https://api.github.com/repos/keysim86/ha-health-card/releases" \
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY}")
+            -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY, \"prerelease\": $PRERELEASE}")
           echo "GitHub API response: $RESPONSE"
           RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
           echo "Release ID: $RELEASE_ID"
