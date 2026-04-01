@@ -977,13 +977,12 @@ class HealthCard extends HTMLElement {
       var pulNow = pulStateNow ? Math.round(parseFloat(pulStateNow.state)) : '—';
       var catNow = catState ? catState.state : null;
 
-      // Ostatni pomiar — najnowszy timestamp spośród trzech sensorów
+      // Ostatni pomiar — ostatni punkt ze statystyk (nie last_changed, bo restart HA fałszuje timestamp)
       var lastTs = null;
-      [sysStateNow, diaStateNow, pulStateNow].forEach(function(s) {
-        if (s && s.last_changed) {
-          var t = new Date(s.last_changed);
-          if (!lastTs || t > lastTs) lastTs = t;
-        }
+      [sysStats, diaStats, pulStats].forEach(function(arr) {
+        if (!arr.length) return;
+        var t = new Date(self._ts(arr[arr.length - 1]));
+        if (!lastTs || t > lastTs) lastTs = t;
       });
       var lastMeasured = lastTs
         ? lastTs.toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
