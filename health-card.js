@@ -2055,10 +2055,7 @@ class HealthCard extends HTMLElement {
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: {
-          legend: {
-            display: true, position: 'bottom',
-            labels: { color: 'var(--primary-text-color)', font: { size: 10 }, boxWidth: 12, padding: 8 }
-          },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: function(ctx) {
