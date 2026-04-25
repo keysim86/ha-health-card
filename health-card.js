@@ -1919,30 +1919,69 @@ class HealthCard extends HTMLElement {
       }
     });
 
-    // Ostatni pomiar z historii
+    // Pierwszy i ostatni pomiar z historii
     var lastDates = {};
+    var firstVals = {};
+    var firstDates = {};
     keys.forEach(function(k) {
       var entityId = cfg[k].entity;
       if (!entityId) return;
       var arr = stats[entityId] || [];
       if (arr.length) {
-        var s   = arr[arr.length - 1];
-        var val = s.mean != null ? s.mean : s.state;
-        if (!isNaN(val)) lastDates[k] = self._day(self._ts(s));
+        var first    = arr[0];
+        var last     = arr[arr.length - 1];
+        var firstVal = first.mean != null ? first.mean : first.state;
+        if (!isNaN(firstVal)) {
+          firstVals[k]  = Math.round(firstVal * 10) / 10;
+          firstDates[k] = self._day(self._ts(first));
+        }
+        lastDates[k] = self._day(self._ts(last));
       }
     });
 
-    // Kafelki z aktualnymi wartościami
+    // Kafelki z aktualnymi wartościami i deltą od pierwszego pomiaru
     var meas = BODY_MEAS.filter(function(m) { return keys.indexOf(m.key) >= 0; });
     var metricsHtml = meas.map(function(m) {
-      var val  = currentVals[m.key];
-      var date = lastDates[m.key] || '';
+      var val   = currentVals[m.key];
+      var first = firstVals[m.key];
+      var date  = lastDates[m.key] || '';
+      var delta = (val != null && first != null) ? Math.round((val - first) * 10) / 10 : null;
+      var deltaHtml = '';
+      if (delta !== null) {
+        var sign  = delta <= 0 ? '−' : '+';
+        var color = delta <= 0 ? '#1D9E75' : '#E24B4A';
+        deltaHtml = '<div class="metric-sub" style="color:' + color + ';font-weight:500">'
+          + sign + Math.abs(delta).toFixed(1) + ' cm od ' + (firstDates[m.key] || '') + '</div>';
+      }
       return '<div class="metric">'
         + '<div class="metric-label">' + m.label + '</div>'
         + '<div class="metric-value">' + (val != null ? val.toFixed(1) + ' cm' : '—') + '</div>'
         + '<div class="metric-sub">' + date + '</div>'
+        + deltaHtml
         + '</div>';
     }).join('');
+
+    // Podsumowanie łącznej utraty (suma delt)
+    var totalDelta = 0;
+    var totalCount = 0;
+    meas.forEach(function(m) {
+      var val   = currentVals[m.key];
+      var first = firstVals[m.key];
+      if (val != null && first != null) { totalDelta += val - first; totalCount++; }
+    });
+    var summaryHtml = '';
+    if (totalCount > 0) {
+      var td    = Math.round(totalDelta * 10) / 10;
+      var tSign = td <= 0 ? '−' : '+';
+      var tCol  = td <= 0 ? '#1D9E75' : '#E24B4A';
+      var firstD = Object.values(firstDates)[0] || '';
+      summaryHtml = '<div style="background:var(--secondary-background-color);border-radius:12px;padding:12px 16px;'
+        + 'margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">'
+        + '<span style="font-size:12px;color:var(--secondary-text-color)">Łącznie od ' + firstD + '</span>'
+        + '<span style="font-size:20px;font-weight:500;color:' + tCol + '">'
+        + tSign + Math.abs(td).toFixed(1) + ' cm</span>'
+        + '</div>';
+    }
 
     // Dane historii — oś X
     var dateSet = new Set();
@@ -1982,6 +2021,7 @@ class HealthCard extends HTMLElement {
 
     page.innerHTML =
       '<div class="metric-grid">' + metricsHtml + '</div>'
+      + summaryHtml
       + '<h3>&#128202; Aktualny profil pomiarów</h3>'
       + '<div class="chart-wrap" style="height:280px"><canvas id="measRadarChart"></canvas></div>'
       + '<h3>&#128200; Historia pomiarów</h3>'
