@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.3.0] - 2026-04-25
 
 ### Dodano
 - Zakładka **Pomiary** (obok Waga) z 8 pomiarami ciała: szyja, klatka, brzuch, talia, biodra, udo, łydka, biceps
