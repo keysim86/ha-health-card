@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.1] - 2026-04-25
+
+### Naprawiono
+- Usunięto duplikat legendy z wykresu historii pomiarów (była wyświetlana dwa razy)
+- Zmieniono kolor Bicepsa z żółtego na różowy — wszystkie 8 linii ma teraz wyraźnie różne kolory
+- Dodano unikalne wzory kresek dla każdej linii wykresu historii
+
+### Dodano
+- Delta od pierwszego pomiaru w każdym kafelku (zielona = utrata, czerwona = przyrost)
+- Pasek podsumowania łącznej zmiany wszystkich wymiarów od pierwszego pomiaru
+
 ## [1.3.0] - 2026-04-25
 
 ### Dodano
