@@ -12,12 +12,23 @@ var BODY_MEAS = [
 var MEAS_COLORS = {
   neck:    '#E24B4A',
   chest:   '#3B8BD4',
-  abdomen: '#BA7517',
+  abdomen: '#F39C12',
   waist:   '#1D9E75',
   hips:    '#9B59B6',
   thigh:   '#E67E22',
   calf:    '#16A085',
-  biceps:  '#F39C12',
+  biceps:  '#E91E8C',
+};
+
+var MEAS_DASH = {
+  neck:    [],
+  chest:   [],
+  abdomen: [6, 3],
+  waist:   [],
+  hips:    [4, 4],
+  thigh:   [6, 3],
+  calf:    [10, 3, 2, 3],
+  biceps:  [4, 4],
 };
 
 class HealthCard extends HTMLElement {
@@ -1955,10 +1966,12 @@ class HealthCard extends HTMLElement {
       }
       var data = allDates.map(function(d) { return dayMap.has(d) ? dayMap.get(d) : null; });
       var col  = MEAS_COLORS[m.key] || '#888';
+      var dash = MEAS_DASH[m.key]  || [];
       return {
         type: 'line', label: m.label, data: data,
         borderColor: col, backgroundColor: col + '22',
-        borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
+        borderWidth: 2, borderDash: dash,
+        pointRadius: 3, pointHoverRadius: 5,
         tension: 0.3, fill: false, spanGaps: true,
       };
     });
