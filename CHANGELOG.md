@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Dodano
+- Zakładka **Pomiary** (obok Waga) z 8 pomiarami ciała: szyja, klatka, brzuch, talia, biodra, udo, łydka, biceps
+- Wykres radarowy aktualnego profilu pomiarów (znormalizowany 0–100%)
+- Wykres historii pomiarów (linia wieloseryjna, do 2 lat wstecz)
+- Sekcja **Pomiary ciała** w zakładce "Wprowadź dane" — zapis wszystkich 8 wymiarów jednym przyciskiem
+- Opcja `measurements_enabled: false` do ukrycia zakładki Pomiary
+- Konfiguracja `measurements` w YAML karty: klucze `neck`, `chest`, `abdomen`, `waist`, `hips`, `thigh`, `calf`, `biceps`, każdy z polami `entity` (sensor ze statystykami) i `input` (input_number do zapisu)
+
 ## [1.2.1] - 2026-03-27
 
 ### Fixed

@@ -1,3 +1,25 @@
+var BODY_MEAS = [
+  { key: 'neck',    label: 'Szyja',   min: 20, max: 80  },
+  { key: 'chest',   label: 'Klatka',  min: 40, max: 160 },
+  { key: 'abdomen', label: 'Brzuch',  min: 40, max: 200 },
+  { key: 'waist',   label: 'Talia',   min: 40, max: 180 },
+  { key: 'hips',    label: 'Biodra',  min: 40, max: 180 },
+  { key: 'thigh',   label: 'Udo',     min: 20, max: 100 },
+  { key: 'calf',    label: 'Łydka', min: 20, max: 80 },
+  { key: 'biceps',  label: 'Biceps',  min: 10, max: 80  },
+];
+
+var MEAS_COLORS = {
+  neck:    '#E24B4A',
+  chest:   '#3B8BD4',
+  abdomen: '#BA7517',
+  waist:   '#1D9E75',
+  hips:    '#9B59B6',
+  thigh:   '#E67E22',
+  calf:    '#16A085',
+  biceps:  '#F39C12',
+};
+
 class HealthCard extends HTMLElement {
   constructor() {
     super();
@@ -7,8 +29,11 @@ class HealthCard extends HTMLElement {
     this._daily           = [];
     this._stepsChart      = null;
     this._calChart        = null;
-    this._activityLoaded  = false;
-    this._activityDays    = 30;
+    this._activityLoaded      = false;
+    this._activityDays        = 30;
+    this._measurementsLoaded  = false;
+    this._measChart           = null;
+    this._measHistChart       = null;
   }
 
   setConfig(config) {
@@ -40,12 +65,15 @@ class HealthCard extends HTMLElement {
       report_birthdate: config.report_birthdate || '',
       report_device:    config.report_device    || '',
       bp_exclude_timestamps: Array.isArray(config.bp_exclude_timestamps) ? config.bp_exclude_timestamps : [],
+      measurements:         config.measurements         || {},
+      measurements_enabled: config.measurements_enabled !== false,
     };
 
     // Resetuj flagi cache — nowa konfiguracja wymaga przeładowania danych
-    this._pressureLoaded = false;
-    this._activityLoaded = false;
-    this._loaded         = false;
+    this._pressureLoaded     = false;
+    this._activityLoaded     = false;
+    this._measurementsLoaded = false;
+    this._loaded             = false;
   }
 
   set hass(hass) {
@@ -345,16 +373,18 @@ class HealthCard extends HTMLElement {
         <div id="wrap">
           <div class="nav" id="health-nav">
             <button class="nav-btn active" data-page="weight">&#9878; Waga</button>
+            <button class="nav-btn" data-page="measurements">&#128208; Pomiary</button>
             <button class="nav-btn" data-page="pressure">&#128138; Ci&#347;nienie</button>
             <button class="nav-btn" data-page="activity">&#127939; Aktywno&#347;&#263;</button>
             <button class="nav-btn" data-page="centile">&#128200; Siatki</button>
             <button class="nav-btn" data-page="settings">&#9998; Wprowad&#378; dane</button>
           </div>
           <div id="content"><div class="loading">Ładowanie danych...</div></div>
-          <div id="page-pressure" class="nav-page" style="display:none"></div>
-          <div id="page-activity" class="nav-page" style="display:none"></div>
-          <div id="page-centile"  class="nav-page" style="display:none"></div>
-          <div id="page-settings" class="nav-page" style="display:none"></div>
+          <div id="page-measurements" class="nav-page" style="display:none"></div>
+          <div id="page-pressure"    class="nav-page" style="display:none"></div>
+          <div id="page-activity"    class="nav-page" style="display:none"></div>
+          <div id="page-centile"     class="nav-page" style="display:none"></div>
+          <div id="page-settings"    class="nav-page" style="display:none"></div>
         </div>
       </ha-card>
     `;
@@ -560,11 +590,15 @@ class HealthCard extends HTMLElement {
     if (page === 'settings') {
       this._renderSettings();
     }
+    if (page === 'measurements' && !this._measurementsLoaded) {
+      this._measurementsLoaded = true;
+      this._loadMeasurementsData();
+    }
     var r = this.shadowRoot;
     // Pokaż/ukryj odpowiednie strony
     var content = r.getElementById('content');
     if (content) content.style.display = page === 'weight' ? '' : 'none';
-    ['pressure', 'activity', 'centile', 'settings'].forEach(function(p) {
+    ['measurements', 'pressure', 'activity', 'centile', 'settings'].forEach(function(p) {
       var el = r.getElementById('page-' + p);
       if (el) el.style.display = p === page ? 'block' : 'none';
     });
@@ -582,10 +616,18 @@ class HealthCard extends HTMLElement {
   _applyNavVisibility() {
     var nav = this.shadowRoot.getElementById('health-nav');
     if (!nav) return;
-    var bp  = nav.querySelector('[data-page="pressure"]');
-    var cen = nav.querySelector('[data-page="centile"]');
-    if (bp)  bp.style.display  = this.config.bp_enabled      ? '' : 'none';
-    if (cen) cen.style.display = this.config.centile_enabled ? '' : 'none';
+    var bp   = nav.querySelector('[data-page="pressure"]');
+    var cen  = nav.querySelector('[data-page="centile"]');
+    var meas = nav.querySelector('[data-page="measurements"]');
+    if (bp)   bp.style.display   = this.config.bp_enabled           ? '' : 'none';
+    if (cen)  cen.style.display  = this.config.centile_enabled      ? '' : 'none';
+    if (meas) meas.style.display = this._hasMeasurements()          ? '' : 'none';
+  }
+
+  _hasMeasurements() {
+    if (!this.config.measurements_enabled) return false;
+    var cfg = this.config.measurements || {};
+    return BODY_MEAS.some(function(m) { return cfg[m.key] && (cfg[m.key].entity || cfg[m.key].input); });
   }
 
   _renderCentile() {
@@ -860,6 +902,17 @@ class HealthCard extends HTMLElement {
     var bpMissing = !cfg.bp_systolic_now || !cfg.bp_diastolic_now || !cfg.bp_pulse_now;
     var hMissing  = !cfg.height_cm_entity;
 
+    var measCfg    = cfg.measurements || {};
+    var measFields = BODY_MEAS.filter(function(m) { return measCfg[m.key] && measCfg[m.key].input; });
+    var measHtml   = measFields.length
+      ? '<h3>&#128208; Pomiary cia\u0142a</h3>'
+        + '<div class="de-grid">'
+        + measFields.map(function(m) { return field('de-meas-' + m.key, m.label, 'cm', measCfg[m.key].input, m.min, m.max); }).join('')
+        + '</div>'
+        + '<button class="report-btn" id="de-save-meas">&#128190; Zapisz pomiary</button>'
+        + '<div class="de-status" id="de-status-meas"></div>'
+      : '';
+
     page.innerHTML =
       '<h3>&#128138; Ci&#347;nienie krwi</h3>'
       + '<div class="de-grid">'
@@ -874,10 +927,12 @@ class HealthCard extends HTMLElement {
       +   field('de-height', 'Wzrost', 'cm', cfg.height_cm_entity, 100, 250)
       + '</div>'
       + '<button class="report-btn" id="de-save-height"' + (hMissing ? ' disabled style="opacity:.4"' : '') + '>&#128190; Zapisz wzrost</button>'
-      + '<div class="de-status" id="de-status-height">' + (hMissing ? '\u26a0 Skonfiguruj height_cm_entity w YAML.' : '') + '</div>';
+      + '<div class="de-status" id="de-status-height">' + (hMissing ? '\u26a0 Skonfiguruj height_cm_entity w YAML.' : '') + '</div>'
+      + measHtml;
 
-    if (!bpMissing) page.querySelector('#de-save-bp').addEventListener('click',     function() { self._saveBloodPressure(); });
-    if (!hMissing)  page.querySelector('#de-save-height').addEventListener('click', function() { self._saveHeight(); });
+    if (!bpMissing)     page.querySelector('#de-save-bp').addEventListener('click',     function() { self._saveBloodPressure(); });
+    if (!hMissing)      page.querySelector('#de-save-height').addEventListener('click', function() { self._saveHeight(); });
+    if (measFields.length) page.querySelector('#de-save-meas').addEventListener('click', function() { self._saveMeasurements(); });
   }
 
   _saveBloodPressure() {
@@ -1786,6 +1841,287 @@ class HealthCard extends HTMLElement {
           }
         }
       }
+    });
+  }
+
+  async _loadMeasurementsData() {
+    var self = this;
+    var page = this.shadowRoot.getElementById('page-measurements');
+    if (!page) return;
+
+    var cfg  = this.config.measurements || {};
+    var keys = BODY_MEAS.map(function(m) { return m.key; })
+                        .filter(function(k) { return cfg[k] && (cfg[k].entity || cfg[k].input); });
+
+    if (!keys.length) {
+      page.innerHTML = '<div class="empty-page"><div class="icon">&#128208;</div>'
+        + '<div class="title">Brak konfiguracji</div>'
+        + '<div>Skonfiguruj <code>measurements</code> w YAML karty</div></div>';
+      return;
+    }
+
+    page.innerHTML = '<div class="loading">&#321;adowanie pomiarów...</div>';
+
+    try {
+      var now   = new Date();
+      var start = new Date(now);
+      start.setFullYear(start.getFullYear() - 2);
+
+      var entityIds = keys
+        .map(function(k) { return cfg[k].entity; })
+        .filter(Boolean);
+
+      var stats = {};
+      if (entityIds.length) {
+        stats = await self._hass.connection.sendMessagePromise({
+          type:          'recorder/statistics_during_period',
+          start_time:    start.toISOString(),
+          end_time:      now.toISOString(),
+          statistic_ids: entityIds,
+          period:        'day',
+          units:         {},
+          types:         ['mean', 'state'],
+        });
+      }
+
+      self._renderMeasurementsContent(keys, stats);
+
+    } catch(err) {
+      page.innerHTML = '<div style="color:#E24B4A;padding:20px">Błąd: ' + err.message + '</div>';
+    }
+  }
+
+  _renderMeasurementsContent(keys, stats) {
+    var self = this;
+    var cfg  = this.config.measurements || {};
+    var page = this.shadowRoot.getElementById('page-measurements');
+    if (!page) return;
+
+    // Aktualne wartości ze stanów HA
+    var currentVals = {};
+    keys.forEach(function(k) {
+      var entityId = cfg[k].entity || cfg[k].input;
+      if (!entityId) return;
+      var st = self._hass.states[entityId];
+      if (st && !isNaN(parseFloat(st.state))) {
+        currentVals[k] = Math.round(parseFloat(st.state) * 10) / 10;
+      }
+    });
+
+    // Ostatni pomiar z historii
+    var lastDates = {};
+    keys.forEach(function(k) {
+      var entityId = cfg[k].entity;
+      if (!entityId) return;
+      var arr = stats[entityId] || [];
+      if (arr.length) {
+        var s   = arr[arr.length - 1];
+        var val = s.mean != null ? s.mean : s.state;
+        if (!isNaN(val)) lastDates[k] = self._day(self._ts(s));
+      }
+    });
+
+    // Kafelki z aktualnymi wartościami
+    var meas = BODY_MEAS.filter(function(m) { return keys.indexOf(m.key) >= 0; });
+    var metricsHtml = meas.map(function(m) {
+      var val  = currentVals[m.key];
+      var date = lastDates[m.key] || '';
+      return '<div class="metric">'
+        + '<div class="metric-label">' + m.label + '</div>'
+        + '<div class="metric-value">' + (val != null ? val.toFixed(1) + ' cm' : '—') + '</div>'
+        + '<div class="metric-sub">' + date + '</div>'
+        + '</div>';
+    }).join('');
+
+    // Dane historii — oś X
+    var dateSet = new Set();
+    keys.forEach(function(k) {
+      var entityId = cfg[k].entity;
+      if (!entityId) return;
+      (stats[entityId] || []).forEach(function(s) {
+        dateSet.add(self._day(self._ts(s)));
+      });
+    });
+    var allDates = Array.from(dateSet).sort();
+
+    var datasets = meas.map(function(m) {
+      var entityId = cfg[m.key].entity;
+      var dayMap   = new Map();
+      if (entityId) {
+        (stats[entityId] || []).forEach(function(s) {
+          var val = s.mean != null ? s.mean : s.state;
+          if (!isNaN(val)) dayMap.set(self._day(self._ts(s)), Math.round(val * 10) / 10);
+        });
+      }
+      var data = allDates.map(function(d) { return dayMap.has(d) ? dayMap.get(d) : null; });
+      var col  = MEAS_COLORS[m.key] || '#888';
+      return {
+        type: 'line', label: m.label, data: data,
+        borderColor: col, backgroundColor: col + '22',
+        borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
+        tension: 0.3, fill: false, spanGaps: true,
+      };
+    });
+
+    var legendHtml = meas.map(function(m) {
+      return '<span><span class="ldot" style="background:' + (MEAS_COLORS[m.key] || '#888') + '"></span>' + m.label + '</span>';
+    }).join('');
+
+    page.innerHTML =
+      '<div class="metric-grid">' + metricsHtml + '</div>'
+      + '<h3>&#128202; Aktualny profil pomiarów</h3>'
+      + '<div class="chart-wrap" style="height:280px"><canvas id="measRadarChart"></canvas></div>'
+      + '<h3>&#128200; Historia pomiarów</h3>'
+      + '<div class="legend">' + legendHtml + '</div>'
+      + '<div class="chart-wrap" style="height:240px"><canvas id="measHistChart"></canvas></div>';
+
+    var draw = function() {
+      self._drawMeasurementsRadar(meas, currentVals);
+      self._drawMeasurementsHistory(allDates, datasets);
+    };
+    if (window.Chart) draw(); else setTimeout(draw, 500);
+  }
+
+  _drawMeasurementsRadar(meas, currentVals) {
+    var canvas = this.shadowRoot.getElementById('measRadarChart');
+    if (!canvas) return;
+    if (canvas._ci) { canvas._ci.destroy(); }
+
+    var labels = meas.map(function(m) { return m.label; });
+    var data   = meas.map(function(m) {
+      var val = currentVals[m.key];
+      if (val == null) return null;
+      return Math.round(Math.max(0, Math.min(100, (val - m.min) / (m.max - m.min) * 100)) * 10) / 10;
+    });
+
+    canvas._ci = new window.Chart(canvas, {
+      type: 'radar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Pomiary',
+          data: data,
+          borderColor: '#3B8BD4',
+          backgroundColor: 'rgba(59,139,212,0.2)',
+          pointBackgroundColor: meas.map(function(m) { return MEAS_COLORS[m.key] || '#3B8BD4'; }),
+          pointRadius: 5,
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                var m   = meas[ctx.dataIndex];
+                var raw = m ? currentVals[m.key] : null;
+                return m ? (' ' + m.label + ': ' + (raw != null ? raw.toFixed(1) + ' cm' : '—')) : null;
+              }
+            }
+          }
+        },
+        scales: {
+          r: {
+            min: 0, max: 100,
+            ticks: {
+              stepSize: 25, color: '#73726c', font: { size: 10 },
+              callback: function(v) { return v + '%'; }
+            },
+            grid: { color: 'rgba(128,128,128,0.2)' },
+            pointLabels: { color: 'var(--primary-text-color)', font: { size: 11 } }
+          }
+        }
+      }
+    });
+    this._measChart = canvas._ci;
+  }
+
+  _drawMeasurementsHistory(allDates, datasets) {
+    var canvas = this.shadowRoot.getElementById('measHistChart');
+    if (!canvas) return;
+    if (canvas._ci) { canvas._ci.destroy(); }
+    if (!allDates.length) return;
+
+    var labels = allDates.map(function(d) {
+      var dt = new Date(d);
+      return dt.getDate() + '.' + (dt.getMonth() + 1);
+    });
+
+    canvas._ci = new window.Chart(canvas, {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true, position: 'bottom',
+            labels: { color: 'var(--primary-text-color)', font: { size: 10 }, boxWidth: 12, padding: 8 }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                return ' ' + ctx.dataset.label + ': ' + ctx.parsed.y + ' cm';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { maxTicksLimit: 10, color: '#73726c', font: { size: 10 }, maxRotation: 30 },
+            grid: { display: false }
+          },
+          y: {
+            ticks: { color: '#73726c', font: { size: 10 }, callback: function(v) { return v + ' cm'; } },
+            grid: { color: 'rgba(128,128,128,0.1)' }
+          }
+        }
+      }
+    });
+    this._measHistChart = canvas._ci;
+  }
+
+  _saveMeasurements() {
+    var self    = this;
+    var r       = this.shadowRoot;
+    var cfg     = this.config.measurements || {};
+    var st      = r.getElementById('de-status-meas');
+    var calls   = [];
+    var invalid = [];
+
+    BODY_MEAS.forEach(function(m) {
+      var mcfg = cfg[m.key];
+      if (!mcfg || !mcfg.input) return;
+      var el = r.getElementById('de-meas-' + m.key);
+      if (!el || el.value === '') return;
+      var val = parseFloat(el.value);
+      if (isNaN(val) || val < m.min || val > m.max) {
+        invalid.push(m.label);
+        if (el) el.classList.add('invalid');
+        return;
+      }
+      if (el) el.classList.remove('invalid');
+      calls.push(self._hass.callService('input_number', 'set_value', {
+        entity_id: mcfg.input,
+        value:     val,
+      }));
+    });
+
+    if (invalid.length) {
+      if (st) { st.textContent = '⚠ Nieprawidłowe wartości: ' + invalid.join(', '); st.className = 'de-status err'; }
+      return;
+    }
+    if (!calls.length) {
+      if (st) { st.textContent = '⚠ Nie podano żadnych wartości.'; st.className = 'de-status err'; }
+      return;
+    }
+
+    Promise.all(calls).then(function() {
+      if (st) { st.textContent = '✓ Zapisano pomiary.'; st.className = 'de-status ok'; }
+      self._measurementsLoaded = false;
+    }).catch(function(e) {
+      if (st) { st.textContent = '⚠ Błąd: ' + e.message; st.className = 'de-status err'; }
     });
   }
 
