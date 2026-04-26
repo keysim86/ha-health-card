@@ -1940,12 +1940,12 @@ class HealthCard extends HTMLElement {
       }
       lastDates[k] = self._day(self._ts(last));
 
-      // Znajdź ostatni unikalny pomiar przed aktualnym (inna data)
-      var lastDay = lastDates[k];
-      for (var i = arr.length - 2; i >= 0; i--) {
-        var d   = self._day(self._ts(arr[i]));
-        var v   = arr[i].mean != null ? arr[i].mean : arr[i].state;
-        if (d !== lastDay && !isNaN(v)) {
+      // Znajdź ostatni pomiar z inną wartością niż aktualna (poprzednia sesja pomiarowa)
+      var curVal = currentVals[k];
+      for (var i = arr.length - 1; i >= 0; i--) {
+        var d = self._day(self._ts(arr[i]));
+        var v = arr[i].mean != null ? arr[i].mean : arr[i].state;
+        if (!isNaN(v) && Math.round(v * 10) / 10 !== curVal) {
           prevVals[k]  = Math.round(v * 10) / 10;
           prevDates[k] = d;
           break;
