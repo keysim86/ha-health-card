@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.2] - 2026-04-26
+
+### Dodano
+- Delta od poprzedniego unikalnego pomiaru w każdym kafelku pomiarów (nad deltą od pierwszego pomiaru)
+- Kafelek podsumowania pokazuje dwa wiersze: łącznie od ostatniego pomiaru i łącznie od początku
+
 ## [1.3.1] - 2026-04-25
 
 ### Naprawiono
