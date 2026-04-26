@@ -1981,25 +1981,35 @@ class HealthCard extends HTMLElement {
         + '</div>';
     }).join('');
 
-    // Podsumowanie łącznej utraty (suma delt)
-    var totalDelta = 0;
-    var totalCount = 0;
+    // Podsumowanie łącznej utraty — od pierwszego i od poprzedniego pomiaru
+    var totalDeltaFirst = 0, totalDeltaPrev = 0;
+    var countFirst = 0, countPrev = 0;
     meas.forEach(function(m) {
-      var val   = currentVals[m.key];
-      var first = firstVals[m.key];
-      if (val != null && first != null) { totalDelta += val - first; totalCount++; }
+      var val = currentVals[m.key];
+      if (val != null && firstVals[m.key] != null) { totalDeltaFirst += val - firstVals[m.key]; countFirst++; }
+      if (val != null && prevVals[m.key]  != null) { totalDeltaPrev  += val - prevVals[m.key];  countPrev++;  }
     });
-    var summaryHtml = '';
-    if (totalCount > 0) {
-      var td    = Math.round(totalDelta * 10) / 10;
+
+    var fmtSummaryRow = function(total, label) {
+      var td    = Math.round(total * 10) / 10;
       var tSign = td <= 0 ? '−' : '+';
       var tCol  = td <= 0 ? '#1D9E75' : '#E24B4A';
-      var firstD = Object.values(firstDates)[0] || '';
-      summaryHtml = '<div style="background:var(--secondary-background-color);border-radius:12px;padding:12px 16px;'
-        + 'margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">'
-        + '<span style="font-size:12px;color:var(--secondary-text-color)">Łącznie od ' + firstD + '</span>'
-        + '<span style="font-size:20px;font-weight:500;color:' + tCol + '">'
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">'
+        + '<span style="font-size:12px;color:var(--secondary-text-color)">' + label + '</span>'
+        + '<span style="font-size:18px;font-weight:500;color:' + tCol + '">'
         + tSign + Math.abs(td).toFixed(1) + ' cm</span>'
+        + '</div>';
+    };
+
+    var summaryHtml = '';
+    if (countFirst > 0 || countPrev > 0) {
+      var firstD = Object.values(firstDates)[0] || '';
+      var prevD  = Object.values(prevDates)[0]  || '';
+      summaryHtml = '<div style="background:var(--secondary-background-color);border-radius:12px;padding:10px 16px;margin-bottom:16px">'
+        + (countPrev  > 0 ? fmtSummaryRow(totalDeltaPrev,  'Łącznie od ostatniego pomiaru (' + prevD  + ')') : '')
+        + (countFirst > 0 && firstD !== prevD ? '<div style="border-top:1px solid rgba(128,128,128,0.15);margin-top:2px;padding-top:2px">'
+            + fmtSummaryRow(totalDeltaFirst, 'Łącznie od początku (' + firstD + ')')
+            + '</div>' : '')
         + '</div>';
     }
 
