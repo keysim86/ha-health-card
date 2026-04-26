@@ -1919,45 +1919,65 @@ class HealthCard extends HTMLElement {
       }
     });
 
-    // Pierwszy i ostatni pomiar z historii
+    // Pierwszy, poprzedni i ostatni pomiar z historii
     var lastDates = {};
     var firstVals = {};
     var firstDates = {};
+    var prevVals  = {};
+    var prevDates = {};
     keys.forEach(function(k) {
       var entityId = cfg[k].entity;
       if (!entityId) return;
       var arr = stats[entityId] || [];
-      if (arr.length) {
-        var first    = arr[0];
-        var last     = arr[arr.length - 1];
-        var firstVal = first.mean != null ? first.mean : first.state;
-        if (!isNaN(firstVal)) {
-          firstVals[k]  = Math.round(firstVal * 10) / 10;
-          firstDates[k] = self._day(self._ts(first));
+      if (!arr.length) return;
+
+      var first    = arr[0];
+      var last     = arr[arr.length - 1];
+      var firstVal = first.mean != null ? first.mean : first.state;
+      if (!isNaN(firstVal)) {
+        firstVals[k]  = Math.round(firstVal * 10) / 10;
+        firstDates[k] = self._day(self._ts(first));
+      }
+      lastDates[k] = self._day(self._ts(last));
+
+      // Znajdź ostatni unikalny pomiar przed aktualnym (inna data)
+      var lastDay = lastDates[k];
+      for (var i = arr.length - 2; i >= 0; i--) {
+        var d   = self._day(self._ts(arr[i]));
+        var v   = arr[i].mean != null ? arr[i].mean : arr[i].state;
+        if (d !== lastDay && !isNaN(v)) {
+          prevVals[k]  = Math.round(v * 10) / 10;
+          prevDates[k] = d;
+          break;
         }
-        lastDates[k] = self._day(self._ts(last));
       }
     });
 
-    // Kafelki z aktualnymi wartościami i deltą od pierwszego pomiaru
+    // Kafelki z aktualnymi wartościami, deltą od pierwszego i od poprzedniego pomiaru
     var meas = BODY_MEAS.filter(function(m) { return keys.indexOf(m.key) >= 0; });
     var metricsHtml = meas.map(function(m) {
       var val   = currentVals[m.key];
       var first = firstVals[m.key];
+      var prev  = prevVals[m.key];
       var date  = lastDates[m.key] || '';
-      var delta = (val != null && first != null) ? Math.round((val - first) * 10) / 10 : null;
-      var deltaHtml = '';
-      if (delta !== null) {
-        var sign  = delta <= 0 ? '−' : '+';
-        var color = delta <= 0 ? '#1D9E75' : '#E24B4A';
-        deltaHtml = '<div class="metric-sub" style="color:' + color + ';font-weight:500">'
-          + sign + Math.abs(delta).toFixed(1) + ' cm od ' + (firstDates[m.key] || '') + '</div>';
-      }
+
+      var deltaFirst = (val != null && first != null) ? Math.round((val - first) * 10) / 10 : null;
+      var deltaPrev  = (val != null && prev  != null) ? Math.round((val - prev)  * 10) / 10 : null;
+
+      var fmtDelta = function(d, label) {
+        if (d === null) return '';
+        var sign  = d <= 0 ? '−' : '+';
+        var color = d <= 0 ? '#1D9E75' : '#E24B4A';
+        return '<div class="metric-sub" style="color:' + color + ';font-weight:500">'
+          + sign + Math.abs(d).toFixed(1) + ' cm ' + label + '</div>';
+      };
+
       return '<div class="metric">'
         + '<div class="metric-label">' + m.label + '</div>'
         + '<div class="metric-value">' + (val != null ? val.toFixed(1) + ' cm' : '—') + '</div>'
         + '<div class="metric-sub">' + date + '</div>'
-        + deltaHtml
+        + fmtDelta(deltaPrev,  'od ' + (prevDates[m.key]  || ''))
+        + fmtDelta(deltaFirst, 'od ' + (firstDates[m.key] || ''))
         + '</div>';
     }).join('');
 
