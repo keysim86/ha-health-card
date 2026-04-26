@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.3] - 2026-04-26
+
+### Naprawiono
+- Poprzedni unikalny pomiar wyznaczany po zmianie wartości (nie tylko daty) — eliminuje fałszywe −0.0 cm gdy HA nagrywa co godzinę tę samą wartość
+
+### Dodano
+- Miesięczny bilans cm — słupkowy wykres łącznej zmiany sumy wszystkich pomiarów per miesiąc
+
 ## [1.3.2] - 2026-04-26
 
 ### Dodano

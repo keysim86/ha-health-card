@@ -9,7 +9,7 @@
 [![HA](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue?style=flat-square)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/github/license/keysim86/ha-home-dashboard-card.svg)](LICENSE)
 
-> Karta Lovelace do monitorowania zdrowia — waga, ciśnienie krwi, aktywność, siatki centylowe. Dane z Home Assistant, raporty PDF.
+> Karta Lovelace do monitorowania zdrowia — waga, pomiary ciała, ciśnienie krwi, aktywność, siatki centylowe. Dane z Home Assistant, raporty PDF.
 
 ---
 
@@ -18,12 +18,13 @@
 | Zakładka | Opis |
 |---|---|
 | ⚖ Waga | Waga ciała, BMI, bilanse bieżące, postęp do celów, wykresy historii i BMI, data ostatniego pomiaru |
+| 📐 Pomiary | 8 pomiarów ciała, wykres radarowy profilu, bilans miesięczny, historia wieloseryjna |
 | 💊 Ciśnienie | Skurczowe, rozkurczowe, puls, statystyki, wykres 90 dni, raport PDF |
 | 🏃 Aktywność | Kroki i kalorie — dzienne wykresy słupkowe, cel dzienny, statystyki |
 | 📈 Siatki centylowe | BMI i wzrost dziecka na tle norm WHO 2007, strefy centylowe |
-| ✏ Wprowadź dane | Ręczny zapis ciśnienia i wzrostu do `input_number` |
+| ✏ Wprowadź dane | Ręczny zapis ciśnienia, wzrostu i pomiarów ciała do `input_number` |
 
-Zakładki **Ciśnienie** i **Siatki centylowe** można włączać/wyłączać przez YAML.
+Zakładki **Pomiary**, **Ciśnienie** i **Siatki centylowe** można włączać/wyłączać przez YAML.
 
 ---
 
@@ -39,6 +40,17 @@ Zakładki **Ciśnienie** i **Siatki centylowe** można włączać/wyłączać pr
 - Przełącznik zakresu: od początku / 6 mies. / 3 mies. / 30 dni / 14 dni / 7 dni
 - Alert gdy cel krwiodawstwa jest w ciągu 7 dni
 - Nawigacja przyklejona do góry podczas scrollowania
+
+## Funkcje — Pomiary ciała
+
+- 8 wymiarów: szyja, klatka piersiowa, brzuch, talia, biodra, udo, łydka, biceps
+- Kafelki z aktualną wartością, datą ostatniego pomiaru i **dwiema deltami**: od poprzedniego pomiaru (inna wartość) i od pierwszego pomiaru
+- Kafelek podsumowania: łączna zmiana sumy cm od ostatniego pomiaru i od początku
+- **Wykres radarowy** aktualnego profilu (znormalizowany 0–100% zakresu każdego wymiaru)
+- **Bilans miesięczny** — słupkowy wykres zmiany łącznej sumy wszystkich pomiarów per miesiąc (zielony = utrata, czerwony = przyrost)
+- **Historia** — wieloseryjna linia, każdy wymiar innym kolorem i wzorem kreski, do 2 lat wstecz
+- Formularz zapisu w zakładce „Wprowadź dane" — zapis wszystkich 8 wymiarów jednym przyciskiem
+- Zakładka ukrywana gdy brak konfiguracji lub `measurements_enabled: false`
 
 ## Funkcje — Ciśnienie
 
@@ -65,6 +77,7 @@ Zakładki **Ciśnienie** i **Siatki centylowe** można włączać/wyłączać pr
 
 - Formularz zapisu ciśnienia (skurczowe / rozkurczowe / puls) do encji `input_number` — tylko gdy wszystkie trzy pola są wypełnione
 - Formularz zapisu wzrostu do `input_number`
+- Formularz zapisu 8 pomiarów ciała do `input_number` — jeden przycisk zapisuje wszystkie wypełnione pola
 - Pod każdym polem wyświetlana jest nazwa encji z YAML lub ostrzeżenie o braku konfiguracji
 
 ---
@@ -129,6 +142,34 @@ report_device:    "Ciśnieniomierz"
 bp_exclude_timestamps:
   - "2026-03-16 22:59"                 # format YYYY-MM-DD HH:MM, strefa lokalna
   - "2026-03-17 07:05"
+
+# --- Pomiary ciała ---
+measurements_enabled: true             # false = ukrywa zakładkę Pomiary
+measurements:
+  neck:
+    entity: sensor.pomiar_szyja        # sensor ze state_class: measurement (historia)
+    input: input_number.pomiar_szyja   # input_number do zapisu
+  chest:
+    entity: sensor.pomiar_klatka
+    input: input_number.pomiar_klatka
+  abdomen:
+    entity: sensor.pomiar_brzuch
+    input: input_number.pomiar_brzuch
+  waist:
+    entity: sensor.pomiar_talia
+    input: input_number.pomiar_talia
+  hips:
+    entity: sensor.pomiar_biodra
+    input: input_number.pomiar_biodra
+  thigh:
+    entity: sensor.pomiar_udo
+    input: input_number.pomiar_udo
+  calf:
+    entity: sensor.pomiar_lydka
+    input: input_number.pomiar_lydka
+  biceps:
+    entity: sensor.pomiar_biceps
+    input: input_number.pomiar_biceps
 
 # --- Cele wagowe ---
 goals:
