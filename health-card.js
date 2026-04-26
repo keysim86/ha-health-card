@@ -2049,17 +2049,49 @@ class HealthCard extends HTMLElement {
       return '<span><span class="ldot" style="background:' + (MEAS_COLORS[m.key] || '#888') + '"></span>' + m.label + '</span>';
     }).join('');
 
+    // Bilans miesięczny — łączna suma cm wszystkich pomiarów per miesiąc
+    // Dla każdej daty oblicz sumę dostępnych sensorów, pogrupuj po miesiącu
+    var dayTotals = new Map(); // date → total cm
+    allDates.forEach(function(d) {
+      var total = 0;
+      var cnt   = 0;
+      meas.forEach(function(m) {
+        var entityId = cfg[m.key].entity;
+        if (!entityId) return;
+        var dayMap = new Map();
+        (stats[entityId] || []).forEach(function(s) {
+          var v = s.mean != null ? s.mean : s.state;
+          if (!isNaN(v)) dayMap.set(self._day(self._ts(s)), Math.round(v * 10) / 10);
+        });
+        if (dayMap.has(d)) { total += dayMap.get(d); cnt++; }
+      });
+      if (cnt === meas.length) dayTotals.set(d, Math.round(total * 10) / 10);
+    });
+
+    var byMonth = new Map();
+    Array.from(dayTotals.entries()).sort(function(a,b){ return a[0].localeCompare(b[0]); }).forEach(function(e) {
+      var m = e[0].slice(0,7);
+      if (!byMonth.has(m)) byMonth.set(m, { first: e[1], last: e[1] });
+      byMonth.get(m).last = e[1];
+    });
+    var monthlyBalData = Array.from(byMonth.entries()).sort(function(a,b){ return a[0].localeCompare(b[0]); }).map(function(e) {
+      return { month: e[0], diff: Math.round((e[1].last - e[1].first) * 10) / 10, first: e[1].first, last: e[1].last };
+    }).reverse();
+
     page.innerHTML =
       '<div class="metric-grid">' + metricsHtml + '</div>'
       + summaryHtml
       + '<h3>&#128202; Aktualny profil pomiarów</h3>'
       + '<div class="chart-wrap" style="height:280px"><canvas id="measRadarChart"></canvas></div>'
+      + '<h3>&#128197; Bilans miesięczny (łączna suma cm)</h3>'
+      + '<div class="chart-wrap" style="height:220px"><canvas id="measMonthChart"></canvas></div>'
       + '<h3>&#128200; Historia pomiarów</h3>'
       + '<div class="legend">' + legendHtml + '</div>'
       + '<div class="chart-wrap" style="height:240px"><canvas id="measHistChart"></canvas></div>';
 
     var draw = function() {
       self._drawMeasurementsRadar(meas, currentVals);
+      self._drawMeasurementsMonthly(monthlyBalData);
       self._drawMeasurementsHistory(allDates, datasets);
     };
     if (window.Chart) draw(); else setTimeout(draw, 500);
@@ -2119,6 +2151,58 @@ class HealthCard extends HTMLElement {
       }
     });
     this._measChart = canvas._ci;
+  }
+
+  _drawMeasurementsMonthly(monthlyBalData) {
+    var canvas = this.shadowRoot.getElementById('measMonthChart');
+    if (!canvas || !monthlyBalData.length) return;
+    if (canvas._ci) { canvas._ci.destroy(); }
+
+    var n = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
+             'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+    var labels = monthlyBalData.map(function(d) {
+      return n[parseInt(d.month.split('-')[1]) - 1] + (d.month === new Date().toLocaleDateString('sv-SE').slice(0,7) ? '*' : '');
+    });
+    var vals   = monthlyBalData.map(function(d) { return d.diff; });
+    var colors = vals.map(function(v) { return v <= 0 ? '#1D9E75' : '#E24B4A'; });
+
+    canvas._ci = new window.Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: vals,
+          backgroundColor: colors,
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                var d    = monthlyBalData[ctx.dataIndex];
+                var sign = ctx.parsed.y <= 0 ? '−' : '+';
+                return ' ' + sign + Math.abs(ctx.parsed.y).toFixed(1) + ' cm  (' + d.first + ' → ' + d.last + ')';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#73726c', font: { size: 11 }, maxRotation: 30 },
+            grid: { display: false }
+          },
+          y: {
+            ticks: { color: '#73726c', font: { size: 11 }, callback: function(v) { return v + ' cm'; } },
+            grid: { color: 'rgba(128,128,128,0.1)' }
+          }
+        }
+      }
+    });
   }
 
   _drawMeasurementsHistory(allDates, datasets) {
