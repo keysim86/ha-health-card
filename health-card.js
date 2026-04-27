@@ -156,18 +156,19 @@ class HealthCard extends HTMLElement {
       var date = daily[i][0];
       var val  = daily[i][1];
       var m    = date.slice(0, 7);
-      if (!byMonth.has(m)) byMonth.set(m, { first: val, last: val });
+      if (!byMonth.has(m)) byMonth.set(m, { last: val });
       byMonth.get(m).last = val;
     }
     var months = Array.from(byMonth.keys()).sort();
     var recent = months.slice(-12);
     return recent.map(function(m) {
-      var idx    = months.indexOf(m);
-      var startW = byMonth.get(m).first;
-      var endW   = idx + 1 < months.length ? byMonth.get(months[idx+1]).first : byMonth.get(m).last;
+      var idx     = months.indexOf(m);
+      var prevM   = idx > 0 ? months[idx - 1] : null;
+      var startW  = prevM ? byMonth.get(prevM).last : null;
+      var endW    = byMonth.get(m).last;
       var partial = idx + 1 >= months.length;
-      return { month: m, startW: startW, endW: endW, diff: Math.round((endW - startW)*100)/100, partial: partial };
-    }).reverse();
+      return { month: m, startW: startW, endW: endW, diff: startW !== null ? Math.round((endW - startW)*100)/100 : null, partial: partial };
+    }).filter(function(d) { return d.startW !== null; }).reverse();
   }
 
   _calcWeekly(daily) {
@@ -180,19 +181,19 @@ class HealthCard extends HTMLElement {
       var mon  = new Date(d);
       mon.setDate(d.getDate() - day + 1);
       var key  = mon.toLocaleDateString('sv-SE');
-      if (!byWeek.has(key)) byWeek.set(key, { first: val, last: val });
+      if (!byWeek.has(key)) byWeek.set(key, { last: val });
       byWeek.get(key).last = val;
     }
     var weeks  = Array.from(byWeek.keys()).sort();
     var recent = weeks.slice(-16);
-    var self   = this;
     return recent.map(function(w) {
-      var idx    = weeks.indexOf(w);
-      var startW = byWeek.get(w).first;
-      var endW   = idx + 1 < weeks.length ? byWeek.get(weeks[idx+1]).first : byWeek.get(w).last;
+      var idx     = weeks.indexOf(w);
+      var prevW   = idx > 0 ? weeks[idx - 1] : null;
+      var startW  = prevW ? byWeek.get(prevW).last : null;
+      var endW    = byWeek.get(w).last;
       var partial = idx + 1 >= weeks.length;
-      return { week: w, label: w.slice(5), startW: startW, endW: endW, diff: Math.round((endW - startW)*100)/100, partial: partial };
-    }).reverse();
+      return { week: w, label: w.slice(5), startW: startW, endW: endW, diff: startW !== null ? Math.round((endW - startW)*100)/100 : null, partial: partial };
+    }).filter(function(d) { return d.startW !== null; }).reverse();
   }
 
   async _fetchStats(startDate, endDate, period) {
@@ -510,7 +511,7 @@ class HealthCard extends HTMLElement {
     }).join('');
 
     var balRows = function(data, nameKey, nameFn) {
-      return data.map(function(b) {
+      return data.filter(function(b) { return b.diff !== null && b.startW !== null; }).map(function(b) {
         var barW = Math.min(100, Math.abs(b.diff) / 5 * 100);
         var neg  = b.diff <= 0;
         return '<div class="bal-row">'
@@ -2071,12 +2072,17 @@ class HealthCard extends HTMLElement {
     var byMonth = new Map();
     Array.from(dayTotals.entries()).sort(function(a,b){ return a[0].localeCompare(b[0]); }).forEach(function(e) {
       var m = e[0].slice(0,7);
-      if (!byMonth.has(m)) byMonth.set(m, { first: e[1], last: e[1] });
+      if (!byMonth.has(m)) byMonth.set(m, { last: e[1] });
       byMonth.get(m).last = e[1];
     });
-    var monthlyBalData = Array.from(byMonth.entries()).sort(function(a,b){ return a[0].localeCompare(b[0]); }).map(function(e) {
-      return { month: e[0], diff: Math.round((e[1].last - e[1].first) * 10) / 10, first: e[1].first, last: e[1].last };
-    }).reverse();
+    var months = Array.from(byMonth.keys()).sort();
+    var monthlyBalData = months.map(function(m, i) {
+      var prevM    = i > 0 ? months[i - 1] : null;
+      var lastThis = byMonth.get(m).last;
+      var lastPrev = prevM ? byMonth.get(prevM).last : null;
+      if (lastPrev === null) return null;
+      return { month: m, diff: Math.round((lastThis - lastPrev) * 10) / 10, from: lastPrev, to: lastThis };
+    }).filter(Boolean).reverse();
 
     page.innerHTML =
       '<div class="metric-grid">' + metricsHtml + '</div>'
@@ -2186,7 +2192,7 @@ class HealthCard extends HTMLElement {
               label: function(ctx) {
                 var d    = monthlyBalData[ctx.dataIndex];
                 var sign = ctx.parsed.y <= 0 ? '−' : '+';
-                return ' ' + sign + Math.abs(ctx.parsed.y).toFixed(1) + ' cm  (' + d.first + ' → ' + d.last + ')';
+                return ' ' + sign + Math.abs(ctx.parsed.y).toFixed(1) + ' cm  (' + d.from + ' → ' + d.to + ')';
               }
             }
           }
