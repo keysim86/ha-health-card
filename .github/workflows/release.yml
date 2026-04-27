@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  release-forgejo:
     if: ${{ !contains(github.server_url, 'github.com') }}
     runs-on: ubuntu-latest
     steps:
@@ -39,28 +39,33 @@ jobs:
             -H "Authorization: token $FORGEJO_TOKEN" \
             -F "attachment=@health-card.js"
 
+  release-github:
+    if: ${{ contains(github.server_url, 'github.com') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION_NO="${{ steps.version.outputs.VERSION }}"
           VERSION_NO="${VERSION_NO#v}"
           BODY=$(awk "/^## \[$VERSION_NO\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md | jq -Rs .)
           if echo "$VERSION_NO" | grep -q '-'; then PRERELEASE=true; else PRERELEASE=false; fi
           RESPONSE=$(curl -s -X POST \
-            "https://api.github.com/repos/keysim86/ha-health-card/releases" \
+            "https://api.github.com/repos/${{ github.repository }}/releases" \
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY, \"prerelease\": $PRERELEASE}")
-          echo "GitHub API response: $RESPONSE"
           RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
-          echo "Release ID: $RELEASE_ID"
-          if [ "$RELEASE_ID" = "null" ] || [ -z "$RELEASE_ID" ]; then
-            echo "ERROR: Failed to create GitHub release"
-            exit 1
-          fi
           curl -s -X POST \
-            "https://uploads.github.com/repos/keysim86/ha-health-card/releases/$RELEASE_ID/assets?name=health-card.js" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=health-card.js" \
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/javascript" \
             --data-binary "@health-card.js"
