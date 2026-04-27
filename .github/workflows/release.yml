@@ -54,18 +54,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NO="${{ steps.version.outputs.VERSION }}"
-          VERSION_NO="${VERSION_NO#v}"
-          BODY=$(awk "/^## \[$VERSION_NO\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md | jq -Rs .)
-          if echo "$VERSION_NO" | grep -q '-'; then PRERELEASE=true; else PRERELEASE=false; fi
-          RESPONSE=$(curl -s -X POST \
-            "https://api.github.com/repos/${{ github.repository }}/releases" \
-            -H "Authorization: token $GH_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY, \"prerelease\": $PRERELEASE}")
-          RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
-          curl -s -X POST \
-            "https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=health-card.js" \
-            -H "Authorization: token $GH_TOKEN" \
-            -H "Content-Type: application/javascript" \
-            --data-binary "@health-card.js"
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          VERSION_NO="${VERSION#v}"
+          BODY=$(awk "/^## \[$VERSION_NO\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
+          PRERELEASE_FLAG=""
+          if echo "$VERSION_NO" | grep -q '-'; then PRERELEASE_FLAG="--prerelease"; fi
+          gh release create "$VERSION" \
+            --title "Health Card $VERSION" \
+            --notes "$BODY" \
+            $PRERELEASE_FLAG \
+            health-card.js
