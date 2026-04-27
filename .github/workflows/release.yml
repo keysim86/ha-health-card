@@ -59,6 +59,7 @@ jobs:
           BODY=$(awk "/^## \[$VERSION_NO\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
           PRERELEASE_FLAG=""
           if echo "$VERSION_NO" | grep -q '-'; then PRERELEASE_FLAG="--prerelease"; fi
+          gh release delete "$VERSION" --yes 2>/dev/null || true
           gh release create "$VERSION" \
             --title "Health Card $VERSION" \
             --notes "$BODY" \
