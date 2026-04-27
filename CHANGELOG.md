@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.5] - 2026-04-27
+
+### Naprawiono
+- Kafelki „Bilans miesiąca" i „Bilans tygodnia" (zakładka Waga): zmieniono metodę liczenia z „pierwszy→ostatni bieżącego okresu" na „ostatni poprzedniego okresu→ostatni bieżącego" — spójna logika z tabelami bilansów
+
 ## [1.3.4] - 2026-04-26
 
 ### Naprawiono
