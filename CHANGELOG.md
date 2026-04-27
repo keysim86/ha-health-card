@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.4] - 2026-04-26
+
+### Naprawiono
+- Bilanse miesięczne i tygodniowe (Waga) oraz bilans miesięczny cm (Pomiary): zmieniono metodę liczenia z „pierwszy→pierwszy następnego" na „ostatni poprzedniego okresu→ostatni bieżącego" — poprawne porównanie realnych odczytów między okresami
+
 ## [1.3.3] - 2026-04-26
 
 ### Naprawiono
