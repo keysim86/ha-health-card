@@ -443,28 +443,34 @@ class HealthCard extends HTMLElement {
     var bmiPct   = Math.min(100, Math.max(0, (bmiNow - 15) / 30 * 100));
     var normKg   = Math.round(25 * Math.pow(h/100, 2) * 100) / 100;
 
-    // Bilans aktualnego miesiąca
+    // Bilans aktualnego miesiąca: ostatni pomiar poprzedniego miesiąca → ostatni bieżącego
     var nowMonth  = currentDate.slice(0, 7);
     var monthDays = daily.filter(function(d) { return d[0].slice(0, 7) === nowMonth; });
+    var prevMonthDays = daily.filter(function(d) { return d[0].slice(0, 7) < nowMonth; });
     var monthBal  = null, monthAvgW = null, monthAvgBmi = null;
     if (monthDays.length > 0) {
-      monthBal    = Math.round((monthDays[monthDays.length - 1][1] - monthDays[0][1]) * 100) / 100;
+      var prevLastW = prevMonthDays.length > 0 ? prevMonthDays[prevMonthDays.length - 1][1] : null;
+      var currLastW = monthDays[monthDays.length - 1][1];
+      if (prevLastW !== null) {
+        monthBal = Math.round((currLastW - prevLastW) * 100) / 100;
+      }
       var mSum    = monthDays.reduce(function(s, d) { return s + d[1]; }, 0);
       monthAvgW   = Math.round(mSum / monthDays.length * 100) / 100;
       var bmiSum  = monthDays.reduce(function(s, d) { return s + self._bmi(d[1]); }, 0);
       monthAvgBmi = Math.round(bmiSum / monthDays.length * 10) / 10;
     }
 
-    // Bilans aktualnego tygodnia (od poniedziałku)
+    // Bilans aktualnego tygodnia: ostatni pomiar poprzedniego tygodnia → ostatni bieżącego
     var todayD       = new Date(currentDate);
     var dayOfWeek    = todayD.getDay() || 7;
     var weekStartD   = new Date(todayD);
     weekStartD.setDate(todayD.getDate() - dayOfWeek + 1);
     var weekStartStr = weekStartD.toLocaleDateString('sv-SE');
     var weekDays     = daily.filter(function(d) { return d[0] >= weekStartStr; });
+    var prevWeekDays = daily.filter(function(d) { return d[0] < weekStartStr; });
     var weekBal      = null;
-    if (weekDays.length > 0) {
-      weekBal = Math.round((weekDays[weekDays.length - 1][1] - weekDays[0][1]) * 100) / 100;
+    if (weekDays.length > 0 && prevWeekDays.length > 0) {
+      weekBal = Math.round((weekDays[weekDays.length - 1][1] - prevWeekDays[prevWeekDays.length - 1][1]) * 100) / 100;
     }
 
     var fmtBal = function(v) {
