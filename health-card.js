@@ -1922,7 +1922,7 @@ class HealthCard extends HTMLElement {
       if (!entityId) return;
       var st = self._hass.states[entityId];
       if (st && !isNaN(parseFloat(st.state))) {
-        currentVals[k] = Math.round(parseFloat(st.state) * 10) / 10;
+        currentVals[k] = Math.round(parseFloat(st.state));
       }
     });
 
@@ -1942,7 +1942,7 @@ class HealthCard extends HTMLElement {
       var last     = arr[arr.length - 1];
       var firstVal = first.mean != null ? first.mean : first.state;
       if (!isNaN(firstVal)) {
-        firstVals[k]  = Math.round(firstVal * 10) / 10;
+        firstVals[k]  = Math.round(firstVal);
         firstDates[k] = self._day(self._ts(first));
       }
       lastDates[k] = self._day(self._ts(last));
@@ -1952,8 +1952,8 @@ class HealthCard extends HTMLElement {
       for (var i = arr.length - 1; i >= 0; i--) {
         var d = self._day(self._ts(arr[i]));
         var v = arr[i].mean != null ? arr[i].mean : arr[i].state;
-        if (!isNaN(v) && Math.round(v * 10) / 10 !== curVal) {
-          prevVals[k]  = Math.round(v * 10) / 10;
+        if (!isNaN(v) && Math.round(v) !== curVal) {
+          prevVals[k]  = Math.round(v);
           prevDates[k] = d;
           break;
         }
@@ -1968,20 +1968,20 @@ class HealthCard extends HTMLElement {
       var prev  = prevVals[m.key];
       var date  = lastDates[m.key] || '';
 
-      var deltaFirst = (val != null && first != null) ? Math.round((val - first) * 10) / 10 : null;
-      var deltaPrev  = (val != null && prev  != null) ? Math.round((val - prev)  * 10) / 10 : null;
+      var deltaFirst = (val != null && first != null) ? Math.round(val - first) : null;
+      var deltaPrev  = (val != null && prev  != null) ? Math.round(val - prev)  : null;
 
       var fmtDelta = function(d, label) {
         if (d === null) return '';
         var sign  = d <= 0 ? '−' : '+';
         var color = d <= 0 ? '#1D9E75' : '#E24B4A';
         return '<div class="metric-sub" style="color:' + color + ';font-weight:500">'
-          + sign + Math.abs(d).toFixed(1) + ' cm ' + label + '</div>';
+          + sign + Math.abs(d) + ' cm ' + label + '</div>';
       };
 
       return '<div class="metric">'
         + '<div class="metric-label">' + m.label + '</div>'
-        + '<div class="metric-value">' + (val != null ? val.toFixed(1) + ' cm' : '—') + '</div>'
+        + '<div class="metric-value">' + (val != null ? val + ' cm' : '—') + '</div>'
         + '<div class="metric-sub">' + date + '</div>'
         + fmtDelta(deltaPrev,  'od ' + (prevDates[m.key]  || ''))
         + fmtDelta(deltaFirst, 'od ' + (firstDates[m.key] || ''))
@@ -1998,13 +1998,13 @@ class HealthCard extends HTMLElement {
     });
 
     var fmtSummaryRow = function(total, label) {
-      var td    = Math.round(total * 10) / 10;
+      var td    = Math.round(total);
       var tSign = td <= 0 ? '−' : '+';
       var tCol  = td <= 0 ? '#1D9E75' : '#E24B4A';
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">'
         + '<span style="font-size:12px;color:var(--secondary-text-color)">' + label + '</span>'
         + '<span style="font-size:18px;font-weight:500;color:' + tCol + '">'
-        + tSign + Math.abs(td).toFixed(1) + ' cm</span>'
+        + tSign + Math.abs(td) + ' cm</span>'
         + '</div>';
     };
 
