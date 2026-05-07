@@ -2068,11 +2068,11 @@ class HealthCard extends HTMLElement {
         var dayMap = new Map();
         (stats[entityId] || []).forEach(function(s) {
           var v = s.mean != null ? s.mean : s.state;
-          if (!isNaN(v)) dayMap.set(self._day(self._ts(s)), Math.round(v * 10) / 10);
+          if (!isNaN(v)) dayMap.set(self._day(self._ts(s)), Math.round(v));
         });
         if (dayMap.has(d)) { total += dayMap.get(d); cnt++; }
       });
-      if (cnt === meas.length) dayTotals.set(d, Math.round(total * 10) / 10);
+      if (cnt === meas.length) dayTotals.set(d, Math.round(total));
     });
 
     var byMonth = new Map();
@@ -2087,7 +2087,7 @@ class HealthCard extends HTMLElement {
       var lastThis = byMonth.get(m).last;
       var lastPrev = prevM ? byMonth.get(prevM).last : null;
       if (lastPrev === null) return null;
-      return { month: m, diff: Math.round((lastThis - lastPrev) * 10) / 10, from: lastPrev, to: lastThis };
+      return { month: m, diff: Math.round(lastThis - lastPrev), from: lastPrev, to: lastThis };
     }).filter(Boolean).reverse();
 
     page.innerHTML =
@@ -2144,7 +2144,7 @@ class HealthCard extends HTMLElement {
               label: function(ctx) {
                 var m   = meas[ctx.dataIndex];
                 var raw = m ? currentVals[m.key] : null;
-                return m ? (' ' + m.label + ': ' + (raw != null ? raw.toFixed(1) + ' cm' : '—')) : null;
+                return m ? (' ' + m.label + ': ' + (raw != null ? Math.round(raw) + ' cm' : '—')) : null;
               }
             }
           }
@@ -2198,7 +2198,7 @@ class HealthCard extends HTMLElement {
               label: function(ctx) {
                 var d    = monthlyBalData[ctx.dataIndex];
                 var sign = ctx.parsed.y <= 0 ? '−' : '+';
-                return ' ' + sign + Math.abs(ctx.parsed.y).toFixed(1) + ' cm  (' + d.from + ' → ' + d.to + ')';
+                return ' ' + sign + Math.abs(Math.round(ctx.parsed.y)) + ' cm  (' + Math.round(d.from) + ' → ' + Math.round(d.to) + ')';
               }
             }
           }

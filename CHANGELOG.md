@@ -3,7 +3,7 @@
 ## [1.3.6] - 2026-05-07
 
 ### Zmieniono
-- Pomiary ciała wyświetlane jako liczby całkowite (bez miejsc po przecinku) — wartości, delty i podsumowania w cm
+- Pomiary ciała wyświetlane jako liczby całkowite (bez miejsc po przecinku) — wartości, delty, podsumowania, tooltip wykresu radarowego i bilansu miesięcznego
 
 ## [1.3.5] - 2026-04-27
 
