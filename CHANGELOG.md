@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.7] - 2026-05-07
+
+### Naprawiono
+- Liczby całkowite w tooltipach wykresu radarowego i bilansu miesięcznego (były jeszcze .0 po przecinku)
+
 ## [1.3.6] - 2026-05-07
 
 ### Zmieniono
