@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.3.9] - 2026-05-09
+## [1.4.0] - 2026-05-09
 
 ### Dodano
 - Kafelek "Utrata %" na zakładce Waga — pokazuje procentowy ubytek masy względem wagi startowej
