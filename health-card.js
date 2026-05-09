@@ -541,6 +541,7 @@ class HealthCard extends HTMLElement {
         '<div class="metric"><div class="metric-label">Start (' + this.config.start_date + ')</div><div class="metric-value">' + this.config.start_weight.toFixed(2) + ' kg</div><div class="metric-sub">punkt wyjścia</div></div>' +
         '<div class="metric"><div class="metric-label">Aktualnie (' + currentDate + ')</div><div class="metric-value good">' + currentW.toFixed(2) + ' kg</div><div class="metric-sub">ostatni odczyt</div></div>' +
         '<div class="metric"><div class="metric-label">Łączna utrata</div><div class="metric-value good">&minus;' + totalLoss.toFixed(2) + ' kg</div><div class="metric-sub">przez ' + days + ' dni</div></div>' +
+        '<div class="metric"><div class="metric-label">Utrata %</div><div class="metric-value good">&minus;' + Math.round(totalLoss / this.config.start_weight * 1000) / 10 + '%</div><div class="metric-sub">masy startowej</div></div>' +
         '<div class="metric"><div class="metric-label">Średnie tempo</div><div class="metric-value good">&minus;' + weeklyAvg.toFixed(2) + ' kg</div><div class="metric-sub">na tydzień</div></div>' +
       '</div>' +
       '<div class="metric-grid" style="margin-bottom:12px">' +
