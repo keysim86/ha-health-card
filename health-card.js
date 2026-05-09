@@ -514,11 +514,19 @@ class HealthCard extends HTMLElement {
         projDate.setDate(projDate.getDate() + projDays);
         projDateStr = ' &middot; prognoza: ' + projDate.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
       }
+      var achievedDateStr = '';
+      if (achieved) {
+        var firstAchieved = daily.find(function(d) { return d[1] <= g.weight; });
+        if (firstAchieved) {
+          var ad = new Date(firstAchieved[0]);
+          achievedDateStr = ' (' + ad.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ')';
+        }
+      }
       return '<div class="prog-wrap">'
         + '<div class="prog-label"><span>' + (achieved ? '&#9989; ' : '') + g.label + ' &mdash; ' + g.weight + ' kg</span><span>' + pct + '%</span></div>'
         + '<div class="prog-bg"><div class="prog-fill" style="width:' + pct + '%;background:' + (g.color||'#1D9E75') + '"></div></div>'
         + (achieved
-            ? '<div class="prog-sub" style="color:#1D9E75">Cel osi&#261;gni&#281;ty!</div>'
+            ? '<div class="prog-sub" style="color:#1D9E75">Cel osi&#261;gni&#281;ty!' + achievedDateStr + '</div>'
             : '<div class="prog-sub">Brakuje ' + remaining + ' kg &middot; ' + dLeft + ' dni &middot; ' + needed + ' kg/tydz.' + projDateStr + '</div>')
         + '</div>';
     }).join('');
