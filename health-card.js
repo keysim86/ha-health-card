@@ -558,6 +558,30 @@ class HealthCard extends HTMLElement {
         '<div class="metric"><div class="metric-label">Łączna utrata</div><div class="metric-value good">&minus;' + totalLoss.toFixed(2) + ' kg</div><div class="metric-sub">przez ' + days + ' dni</div></div>' +
         '<div class="metric"><div class="metric-label">Utrata %</div><div class="metric-value good">&minus;' + Math.round(totalLoss / this.config.start_weight * 1000) / 10 + '%</div><div class="metric-sub">masy startowej</div></div>' +
         '<div class="metric"><div class="metric-label">Średnie tempo</div><div class="metric-value good">&minus;' + weeklyAvg.toFixed(2) + ' kg</div><div class="metric-sub">na tydzień</div></div>' +
+        (function() {
+          var toNorm = Math.max(0, Math.round((currentW - normKg) * 100) / 100);
+          var normDateStr = '';
+          if (toNorm > 0 && weeklyAvg > 0) {
+            var nd = new Date(); nd.setDate(nd.getDate() + Math.round(toNorm / weeklyAvg * 7));
+            normDateStr = nd.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          }
+          return '<div class="metric"><div class="metric-label">Do normy BMI 25</div>'
+            + '<div class="metric-value" style="color:#f59e0b">' + (toNorm > 0 ? '&minus;' + toNorm.toFixed(1) + ' kg' : '&#10003; OK') + '</div>'
+            + '<div class="metric-sub">' + (normDateStr ? 'prognoza: ' + normDateStr : toNorm === 0 ? normKg.toFixed(1) + ' kg' : '') + '</div>'
+            + '</div>';
+        })() +
+        (function() {
+          var goals = self.config.goals || [];
+          var next = goals.filter(function(g) { return currentW > g.weight; })
+                         .sort(function(a, b) { return b.weight - a.weight; })[0];
+          if (!next) return '<div class="metric"><div class="metric-label">Następny cel</div><div class="metric-value good">&#10003; Wszystkie</div><div class="metric-sub">osiągnięte</div></div>';
+          var rem = Math.round((currentW - next.weight) * 100) / 100;
+          return '<div class="metric"><div class="metric-label">Następny cel</div>'
+            + '<div class="metric-value" style="color:' + (next.color || '#1D9E75') + '">' + next.weight + ' kg</div>'
+            + '<div class="metric-sub">brakuje ' + rem + ' kg</div>'
+            + '</div>';
+        })() +
+        '<div class="metric"><div class="metric-label">Spalono tłuszczu</div><div class="metric-value good">&minus;' + Math.round(totalLoss * 0.75 * 10) / 10 + ' kg</div><div class="metric-sub">szacunek (~75% utraty)</div></div>' +
       '</div>' +
       '<div class="metric-grid" style="margin-bottom:12px">' +
         '<div class="metric"><div class="metric-label">Bilans miesiąca</div><div class="metric-value" style="' + balColor(monthBal) + '">' + fmtBal(monthBal) + '</div><div class="metric-sub">' + (nowMonth || '') + '</div></div>' +
