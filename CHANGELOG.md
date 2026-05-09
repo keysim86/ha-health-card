@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.8] - 2026-05-09
+
+### Naprawiono
+- Raport PDF ciśnienia: zmieniono źródło danych z history API na statistics API — teraz poprawnie pobiera wszystkie pomiary z wybranego okresu (history API zwracało tylko 1 wpis dla input_number gdy wartość się nie zmieniała)
+- Okno dopasowania sys/dia/pul rozszerzone z 60s do 1h (dostosowane do rozdzielczości statystyk godzinowych)
+
 ## [1.3.7] - 2026-05-07
 
 ### Naprawiono

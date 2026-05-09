@@ -1250,41 +1250,42 @@ class HealthCard extends HTMLElement {
     var startStr = start.toLocaleDateString('pl-PL');
     var endStr   = now.toLocaleDateString('pl-PL');
 
-    // Pobierz rzeczywiste pomiary z historii stanów (nie ze statystyk)
-    this._hass.connection.sendMessagePromise({
-      type:                    'history/history_during_period',
-      start_time:              start.toISOString(),
-      end_time:                now.toISOString(),
-      entity_ids:              [this.config.bp_systolic, this.config.bp_diastolic, this.config.bp_pulse],
-      no_attributes:           true,
-      significant_changes_only: false,
-    }).then(function(histData) {
+    // Pobierz pomiary ze statystyk (to samo źródło co wykres — działa z input_number)
+    Promise.all([
+      self._fetchStatsByEntity(self.config.bp_systolic,  start, now, 'hour'),
+      self._fetchStatsByEntity(self.config.bp_diastolic, start, now, 'hour'),
+      self._fetchStatsByEntity(self.config.bp_pulse,     start, now, 'hour'),
+    ]).then(function(results) {
+      var sysStats = results[0][self.config.bp_systolic]  || [];
+      var diaStats = results[1][self.config.bp_diastolic] || [];
+      var pulStats = results[2][self.config.bp_pulse]     || [];
 
-      function parseHist(entries) {
-        return (entries || [])
-          .filter(function(e) { return e.s && !isNaN(parseFloat(e.s)); })
-          .map(function(e) {
-            var ts = e.lc != null ? Math.round(e.lc * 1000)
-                   : e.lu != null ? Math.round(e.lu * 1000) : 0;
-            return { ts: ts, val: Math.round(parseFloat(e.s)) };
-          })
-          .filter(function(e) { return e.ts > 0 && e.ts >= start.getTime(); })
-          .sort(function(a, b) { return a.ts - b.ts; });
+      // Znajdź godziny gdy wartość się zmieniła = realny pomiar
+      function findChanges(stats) {
+        var changes = [];
+        for (var i = 0; i < stats.length; i++) {
+          var curr = Math.round(stats[i].mean != null ? stats[i].mean : stats[i].state);
+          var prev = i > 0 ? Math.round(stats[i-1].mean != null ? stats[i-1].mean : stats[i-1].state) : NaN;
+          if (!isNaN(curr) && (isNaN(prev) || curr !== prev)) {
+            changes.push({ ts: self._ts(stats[i]), val: curr });
+          }
+        }
+        return changes;
       }
 
-      var sysHist = parseHist(histData[self.config.bp_systolic]);
-      var diaHist = parseHist(histData[self.config.bp_diastolic]);
-      var pulHist = parseHist(histData[self.config.bp_pulse]);
+      var sysChanges = findChanges(sysStats);
+      var diaChanges = findChanges(diaStats);
+      var pulChanges = findChanges(pulStats);
 
-      // Dopasuj sys/dia/pul do tego samego pomiaru (okno ±60 s)
-      var WINDOW = 60000;
+      // Dopasuj sys/dia/pul do tego samego pomiaru (okno ±1 godz.)
+      var WINDOW = 3600000;
       var measurements = [];
-      sysHist.forEach(function(sys) {
-        var dia = diaHist.reduce(function(b, d) {
+      sysChanges.forEach(function(sys) {
+        var dia = diaChanges.reduce(function(b, d) {
           if (!b) return d;
           return Math.abs(d.ts - sys.ts) < Math.abs(b.ts - sys.ts) ? d : b;
         }, null);
-        var pul = pulHist.reduce(function(b, p) {
+        var pul = pulChanges.reduce(function(b, p) {
           if (!b) return p;
           return Math.abs(p.ts - sys.ts) < Math.abs(b.ts - sys.ts) ? p : b;
         }, null);
@@ -1298,25 +1299,16 @@ class HealthCard extends HTMLElement {
         }
       });
 
-      // Krok 1: usuń wpisy bliżej niż 2 minuty od poprzedniego
-      measurements = measurements.filter(function(m, i) {
-        return i === 0 || m.ts - measurements[i - 1].ts >= 120000;
-      });
-
-      // Krok 2: usuń duplikaty wartości — HA przy restarcie/reconnect ponownie odczytuje
-      // ostatni stan z urządzenia (nawet po dniach/tygodniach). Prawdziwy pomiar prawie
-      // zawsze różni się od poprzedniego; jeśli sys/dia/pul identyczne jak bezpośrednio
-      // poprzedni wpis — to artefakt HA, nie nowy pomiar.
+      // Usuń duplikaty (te same wartości co poprzedni pomiar)
       measurements = measurements.filter(function(m, i) {
         if (i === 0) return true;
         var prev = measurements[i - 1];
         return m.sys !== prev.sys || m.dia !== prev.dia || m.pul !== prev.pul;
       });
 
-      // Krok 3: usuń pomiary z ręcznie wykluczonych timestampów (bp_exclude_timestamps w YAML)
-      // Format: "YYYY-MM-DD HH:MM" — dopasowanie z dokładnością do minuty
+      // Usuń pomiary z ręcznie wykluczonych timestampów (bp_exclude_timestamps w YAML)
       var excludeSet = new Set((self.config.bp_exclude_timestamps || []).map(function(s) {
-        return s.trim().substring(0, 16); // "YYYY-MM-DD HH:MM"
+        return s.trim().substring(0, 16);
       }));
       if (excludeSet.size > 0) {
         measurements = measurements.filter(function(m) {
