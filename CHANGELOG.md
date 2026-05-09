@@ -4,6 +4,7 @@
 
 ### Dodano
 - Kafelek "Utrata %" na zakładce Waga — pokazuje procentowy ubytek masy względem wagi startowej
+- Prognozowana data osiągnięcia każdego celu na podstawie aktualnego średniego tempa utraty wagi
 
 ## [1.3.8] - 2026-05-09
 

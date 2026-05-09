@@ -507,12 +507,19 @@ class HealthCard extends HTMLElement {
       var remaining = Math.max(0, Math.round((currentW - g.weight) * 100) / 100);
       var dLeft     = self._daysUntil(g.date);
       var needed    = dLeft > 0 ? (remaining / (dLeft / 7)).toFixed(2) : '—';
+      var projDateStr = '';
+      if (!achieved && weeklyAvg > 0 && remaining > 0) {
+        var projDays = Math.round(remaining / weeklyAvg * 7);
+        var projDate = new Date();
+        projDate.setDate(projDate.getDate() + projDays);
+        projDateStr = ' &middot; prognoza: ' + projDate.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      }
       return '<div class="prog-wrap">'
         + '<div class="prog-label"><span>' + (achieved ? '&#9989; ' : '') + g.label + ' &mdash; ' + g.weight + ' kg</span><span>' + pct + '%</span></div>'
         + '<div class="prog-bg"><div class="prog-fill" style="width:' + pct + '%;background:' + (g.color||'#1D9E75') + '"></div></div>'
         + (achieved
             ? '<div class="prog-sub" style="color:#1D9E75">Cel osi&#261;gni&#281;ty!</div>'
-            : '<div class="prog-sub">Brakuje ' + remaining + ' kg &middot; ' + dLeft + ' dni &middot; ' + needed + ' kg/tydz.</div>')
+            : '<div class="prog-sub">Brakuje ' + remaining + ' kg &middot; ' + dLeft + ' dni &middot; ' + needed + ' kg/tydz.' + projDateStr + '</div>')
         + '</div>';
     }).join('');
 
