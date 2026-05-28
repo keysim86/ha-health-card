@@ -26,14 +26,16 @@ jobs:
         run: |
           VERSION_NO="${{ steps.version.outputs.VERSION }}"
           VERSION_NO="${VERSION_NO#v}"
-          BODY=$(awk "/^## \[$VERSION_NO\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md | jq -Rs .)
+          BODY=$(awk "/^## \[$VERSION_NO\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md \
+            | python3 -c "import sys,json; print(json.dumps(sys.stdin.read()))")
           if echo "$VERSION_NO" | grep -q '-'; then PRERELEASE=true; else PRERELEASE=false; fi
           RESPONSE=$(curl -s -X POST \
             "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases" \
             -H "Authorization: token $FORGEJO_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"tag_name\": \"${{ steps.version.outputs.VERSION }}\", \"name\": \"Health Card ${{ steps.version.outputs.VERSION }}\", \"body\": $BODY, \"prerelease\": $PRERELEASE}")
-          RELEASE_ID=$(echo $RESPONSE | jq -r '.id')
+          RELEASE_ID=$(echo "$RESPONSE" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
           curl -s -X POST \
             "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases/$RELEASE_ID/assets" \
             -H "Authorization: token $FORGEJO_TOKEN" \
@@ -52,14 +54,13 @@ jobs:
 
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
           VERSION_NO="${VERSION#v}"
           BODY=$(awk "/^## \[$VERSION_NO\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
           PRERELEASE_FLAG=""
           if echo "$VERSION_NO" | grep -q '-'; then PRERELEASE_FLAG="--prerelease"; fi
-          gh release delete "$VERSION" --yes 2>/dev/null || true
           gh release create "$VERSION" \
             --title "Health Card $VERSION" \
             --notes "$BODY" \
