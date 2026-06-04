@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.1] - 2026-06-04
+
+### Naprawiono
+- Pomiary — różnice od poprzedniego pomiaru liczone błędnie gdy `mean` ze statystyk zaokrąglało się do innej liczby całkowitej niż aktualna wartość; teraz „poprzedni pomiar" szukany po dacie (inna data niż ostatni wpis), nie po zmianie wartości
+
 ## [1.4.0] - 2026-05-09
 
 ### Dodano
