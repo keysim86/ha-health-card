@@ -3,7 +3,7 @@
 ## [1.4.1] - 2026-06-04
 
 ### Naprawiono
-- Pomiary — różnice od poprzedniego pomiaru liczone błędnie gdy `mean` ze statystyk zaokrąglało się do innej liczby całkowitej niż aktualna wartość; teraz „poprzedni pomiar" wymaga zarówno innej daty jak i innej wartości — eliminuje fałszywe −1 cm przy braku realnej zmiany
+- Pomiary — różnice liczone błędnie przez fluktuacje `mean` między godzinami statystyk; teraz dane redukowane do jednej wartości per dzień (ostatni `mean` danego dnia), a porównanie odbywa się między dniami — eliminuje fałszywe ±1 cm
 
 ## [1.4.0] - 2026-05-09
 

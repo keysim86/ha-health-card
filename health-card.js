@@ -1979,16 +1979,24 @@ class HealthCard extends HTMLElement {
       }
       lastDates[k] = self._day(self._ts(last));
 
-      // Znajdź ostatnią sesję pomiarową z inną wartością — wymaga innej daty ORAZ innej wartości
-      var latestDate = lastDates[k];
-      var curVal = currentVals[k]; // już Math.round
-      for (var i = arr.length - 1; i >= 0; i--) {
-        var d = self._day(self._ts(arr[i]));
-        var v = arr[i].mean != null ? arr[i].mean : arr[i].state;
-        if (!isNaN(v) && d !== latestDate && Math.round(v) !== curVal) {
-          prevVals[k]  = Math.round(v);
-          prevDates[k] = d;
-          break;
+      // Zredukuj do ostatniej wartości per dzień, potem porównuj dni
+      var dayMap = {};
+      arr.forEach(function(pt) {
+        var d = self._day(self._ts(pt));
+        var v = pt.mean != null ? pt.mean : pt.state;
+        if (!isNaN(parseFloat(v))) dayMap[d] = Math.round(parseFloat(v));
+      });
+      var sortedDays = Object.keys(dayMap).sort();
+      var latestDay  = sortedDays[sortedDays.length - 1] || null;
+      if (latestDay) {
+        var latestV = dayMap[latestDay];
+        for (var di = sortedDays.length - 2; di >= 0; di--) {
+          var dd = sortedDays[di];
+          if (dayMap[dd] !== latestV) {
+            prevVals[k]  = dayMap[dd];
+            prevDates[k] = dd;
+            break;
+          }
         }
       }
     });
