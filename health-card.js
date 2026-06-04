@@ -1987,15 +1987,17 @@ class HealthCard extends HTMLElement {
       dayMaps[k] = dm;
     });
 
-    // Faza 2: Wspólna data referencyjna = najnowsza data przed aktualną w dowolnym pomiarze
+    // Faza 2: Wspólna data referencyjna = najnowsza data (z dowolnego sensora)
+    //         gdzie wartość jest różna od aktualnej
     var refDate = null;
     keys.forEach(function(k) {
-      var dm      = dayMaps[k] || {};
+      var dm     = dayMaps[k] || {};
       var latestD = lastDates[k];
-      if (!latestD) return;
+      var curVal  = currentVals[k];
+      if (!latestD || curVal == null) return;
       var sorted  = Object.keys(dm).sort();
       for (var di = sorted.length - 1; di >= 0; di--) {
-        if (sorted[di] < latestD) {
+        if (sorted[di] < latestD && dm[sorted[di]] !== curVal) {
           if (!refDate || sorted[di] > refDate) refDate = sorted[di];
           break;
         }
