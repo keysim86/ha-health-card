@@ -3,7 +3,7 @@
 ## [1.4.1] - 2026-06-04
 
 ### Naprawiono
-- Pomiary — różnice liczone błędnie przez `mean` (średnia ważona dnia); teraz używane pole `state` (ostatnia wartość dnia = rzeczywiście wpisana przez użytkownika), co eliminuje fałszywe ±1 cm wynikające z zmiany wartości w ciągu dnia
+- Pomiary — wspólna data referencyjna dla wszystkich pomiarów: najnowsza data poprzedniej sesji pomiarowej (max poprzednich dat); eliminuje różne daty porównania na różnych kafelkach i błędny bilans łączny
 
 ## [1.4.0] - 2026-05-09
 

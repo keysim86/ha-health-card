@@ -1958,12 +1958,11 @@ class HealthCard extends HTMLElement {
       }
     });
 
-    // Pierwszy, poprzedni i ostatni pomiar z historii
+    // Faza 1: Zbuduj dayMap per klucz (state = ostatnia wartość dnia)
+    var dayMaps = {};
     var lastDates = {};
     var firstVals = {};
     var firstDates = {};
-    var prevVals  = {};
-    var prevDates = {};
     keys.forEach(function(k) {
       var entityId = cfg[k].entity;
       if (!entityId) return;
@@ -1973,33 +1972,52 @@ class HealthCard extends HTMLElement {
       var first    = arr[0];
       var last     = arr[arr.length - 1];
       var firstVal = first.state != null ? first.state : first.mean;
-      if (!isNaN(firstVal)) {
-        firstVals[k]  = Math.round(firstVal);
+      if (!isNaN(parseFloat(firstVal))) {
+        firstVals[k]  = Math.round(parseFloat(firstVal));
         firstDates[k] = self._day(self._ts(first));
       }
       lastDates[k] = self._day(self._ts(last));
 
-      // Zredukuj do ostatniej wartości per dzień — używaj state (ostatnia wartość), nie mean (średnia ważona)
-      var dayMap = {};
+      var dm = {};
       arr.forEach(function(pt) {
         var d = self._day(self._ts(pt));
         var v = pt.state != null ? pt.state : pt.mean;
-        if (!isNaN(parseFloat(v))) dayMap[d] = Math.round(parseFloat(v));
+        if (!isNaN(parseFloat(v))) dm[d] = Math.round(parseFloat(v));
       });
-      var sortedDays = Object.keys(dayMap).sort();
-      var latestDay  = sortedDays[sortedDays.length - 1] || null;
-      if (latestDay) {
-        var latestV = dayMap[latestDay];
-        for (var di = sortedDays.length - 2; di >= 0; di--) {
-          var dd = sortedDays[di];
-          if (dayMap[dd] !== latestV) {
-            prevVals[k]  = dayMap[dd];
-            prevDates[k] = dd;
-            break;
-          }
+      dayMaps[k] = dm;
+    });
+
+    // Faza 2: Wspólna data referencyjna = najnowsza data przed aktualną w dowolnym pomiarze
+    var refDate = null;
+    keys.forEach(function(k) {
+      var dm      = dayMaps[k] || {};
+      var latestD = lastDates[k];
+      if (!latestD) return;
+      var sorted  = Object.keys(dm).sort();
+      for (var di = sorted.length - 1; di >= 0; di--) {
+        if (sorted[di] < latestD) {
+          if (!refDate || sorted[di] > refDate) refDate = sorted[di];
+          break;
         }
       }
     });
+
+    // Faza 3: Wartości dla każdego pomiaru z refDate (lub najbliższa wcześniejsza)
+    var prevVals  = {};
+    var prevDates = {};
+    if (refDate) {
+      keys.forEach(function(k) {
+        var dm     = dayMaps[k] || {};
+        var sorted = Object.keys(dm).sort();
+        for (var di = sorted.length - 1; di >= 0; di--) {
+          if (sorted[di] <= refDate) {
+            prevVals[k]  = dm[sorted[di]];
+            prevDates[k] = refDate;
+            break;
+          }
+        }
+      });
+    }
 
     // Kafelki z aktualnymi wartościami, deltą od pierwszego i od poprzedniego pomiaru
     var meas = BODY_MEAS.filter(function(m) { return keys.indexOf(m.key) >= 0; });
