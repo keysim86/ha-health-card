@@ -1934,6 +1934,7 @@ class HealthCard extends HTMLElement {
         });
       }
 
+      self._measStats = stats;
       self._renderMeasurementsContent(keys, stats);
 
     } catch(err) {
@@ -2040,7 +2041,12 @@ class HealthCard extends HTMLElement {
           + sign + Math.abs(d) + ' cm ' + label + '</div>';
       };
 
-      return '<div class="metric">'
+      var entityId = (cfg[m.key] || {}).entity || '';
+      var col      = MEAS_COLORS[m.key] || '#888';
+      var onClick  = entityId
+        ? ' style="cursor:pointer" onclick="this.getRootNode().host._showMeasSensorModal(\'' + entityId + '\',\'' + m.label + '\',\'' + col + '\')"'
+        : '';
+      return '<div class="metric"' + onClick + '>'
         + '<div class="metric-label">' + m.label + '</div>'
         + '<div class="metric-value">' + (val != null ? val + ' cm' : '—') + '</div>'
         + '<div class="metric-sub">' + date + '</div>'
@@ -2276,6 +2282,103 @@ class HealthCard extends HTMLElement {
         }
       }
     });
+  }
+
+  _showMeasSensorModal(entityId, label, color) {
+    var self  = this;
+    var stats = (this._measStats || {})[entityId] || [];
+
+    // Zbuduj dzienną mapę wartości (state → ostatnia wartość dnia)
+    var dayMap = {};
+    stats.forEach(function(pt) {
+      var d = self._day(self._ts(pt));
+      var v = pt.state != null ? pt.state : pt.mean;
+      if (!isNaN(parseFloat(v))) dayMap[d] = Math.round(parseFloat(v) * 10) / 10;
+    });
+    var allDays = Object.keys(dayMap).sort();
+
+    var ranges = [
+      { id: 'all', label: 'Od początku', days: 0 },
+      { id: '90d', label: '90 dni',      days: 90 },
+      { id: '60d', label: '60 dni',      days: 60 },
+      { id: '30d', label: '30 dni',      days: 30 },
+      { id: '14d', label: '14 dni',      days: 14 },
+      { id: '7d',  label: '7 dni',       days: 7  },
+    ];
+
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+
+    var rangeTabsHtml = ranges.map(function(r, i) {
+      return '<button data-range="' + r.days + '" style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid '
+        + (i === 0 ? color + ';background:' + color + '22;color:' + color : 'rgba(128,128,128,.3);background:transparent;color:var(--secondary-text-color)')
+        + ';cursor:pointer;transition:all .15s">' + r.label + '</button>';
+    }).join('');
+
+    overlay.innerHTML = '<div style="background:var(--card-background-color,#1c1c1e);border-radius:16px;padding:20px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;gap:12px">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between">'
+      +   '<div style="font-size:15px;font-weight:700;color:var(--primary-text-color)">' + label + '</div>'
+      +   '<button id="msh-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--secondary-text-color);line-height:1;padding:0 4px">✕</button>'
+      + '</div>'
+      + '<div id="msh-ranges" style="display:flex;gap:6px;flex-wrap:wrap">' + rangeTabsHtml + '</div>'
+      + '<div style="position:relative;height:280px"><canvas id="msh-canvas"></canvas></div>'
+      + '</div>';
+
+    this.shadowRoot.appendChild(overlay);
+
+    var drawChart = function(days) {
+      var cutDate = days > 0 ? new Date(Date.now() - days * 864e5).toLocaleDateString('sv-SE') : null;
+      var filtered = cutDate ? allDays.filter(function(d) { return d >= cutDate; }) : allDays;
+      var labels   = filtered.map(function(d) { var dt = new Date(d + 'T12:00'); return dt.getDate() + '.' + (dt.getMonth() + 1); });
+      var data     = filtered.map(function(d) { return dayMap[d]; });
+
+      var canvas = self.shadowRoot.getElementById('msh-canvas');
+      if (!canvas) return;
+      if (canvas._ci) canvas._ci.destroy();
+      canvas._ci = new window.Chart(canvas, {
+        type: 'line',
+        data: { labels: labels, datasets: [{
+          label: label, data: data,
+          borderColor: color, backgroundColor: color + '22',
+          borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
+          tension: 0.3, fill: true, spanGaps: false,
+        }]},
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: function(c) { return ' ' + c.parsed.y + ' cm'; } } }
+          },
+          scales: {
+            x: { ticks: { maxTicksLimit: 10, color: '#73726c', font: { size: 10 }, maxRotation: 30 }, grid: { display: false } },
+            y: { ticks: { color: '#73726c', font: { size: 10 }, callback: function(v) { return v + ' cm'; } }, grid: { color: 'rgba(128,128,128,.1)' } }
+          }
+        }
+      });
+    };
+
+    if (window.Chart) drawChart(0); else setTimeout(function() { drawChart(0); }, 400);
+
+    // Przyciski zakresów
+    var rangesEl = overlay.querySelector('#msh-ranges');
+    rangesEl.addEventListener('click', function(e) {
+      var btn = e.target.closest('button[data-range]');
+      if (!btn) return;
+      var days = parseInt(btn.dataset.range);
+      rangesEl.querySelectorAll('button').forEach(function(b) {
+        b.style.background   = 'transparent';
+        b.style.borderColor  = 'rgba(128,128,128,.3)';
+        b.style.color        = 'var(--secondary-text-color)';
+      });
+      btn.style.background  = color + '22';
+      btn.style.borderColor = color;
+      btn.style.color       = color;
+      drawChart(days);
+    });
+
+    // Zamknij
+    overlay.querySelector('#msh-close').addEventListener('click', function() { self.shadowRoot.removeChild(overlay); });
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) self.shadowRoot.removeChild(overlay); });
   }
 
   _drawMeasurementsHistory(allDates, datasets) {
