@@ -1972,18 +1972,18 @@ class HealthCard extends HTMLElement {
 
       var first    = arr[0];
       var last     = arr[arr.length - 1];
-      var firstVal = first.mean != null ? first.mean : first.state;
+      var firstVal = first.state != null ? first.state : first.mean;
       if (!isNaN(firstVal)) {
         firstVals[k]  = Math.round(firstVal);
         firstDates[k] = self._day(self._ts(first));
       }
       lastDates[k] = self._day(self._ts(last));
 
-      // Zredukuj do ostatniej wartości per dzień, potem porównuj dni
+      // Zredukuj do ostatniej wartości per dzień — używaj state (ostatnia wartość), nie mean (średnia ważona)
       var dayMap = {};
       arr.forEach(function(pt) {
         var d = self._day(self._ts(pt));
-        var v = pt.mean != null ? pt.mean : pt.state;
+        var v = pt.state != null ? pt.state : pt.mean;
         if (!isNaN(parseFloat(v))) dayMap[d] = Math.round(parseFloat(v));
       });
       var sortedDays = Object.keys(dayMap).sort();
