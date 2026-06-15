@@ -108,6 +108,23 @@ class HealthCard extends HTMLElement {
     return new Date(ts).toLocaleDateString('sv-SE');
   }
 
+  // Moment ostatniej faktycznej zmiany wartości w szeregu statystyk.
+  // HA dopisuje kolejne wpisy (godzinowe/dzienne) z tą samą wartością nawet
+  // gdy nie było nowego pomiaru, więc ostatni wpis ≠ data ostatniego pomiaru.
+  _lastChangeTs(arr) {
+    if (!arr || !arr.length) return null;
+    var val = function(s) { var v = s.state != null ? s.state : s.mean; return parseFloat(v); };
+    var lastVal = val(arr[arr.length - 1]);
+    if (isNaN(lastVal)) return null;
+    for (var i = arr.length - 2; i >= 0; i--) {
+      var v = val(arr[i]);
+      if (isNaN(v)) continue;
+      if (Math.abs(v - lastVal) > 0.01) return this._ts(arr[i + 1]);
+      lastVal = v;
+    }
+    return this._ts(arr[0]);
+  }
+
   _monthName(ym) {
     const n = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
                'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
@@ -1090,11 +1107,14 @@ class HealthCard extends HTMLElement {
       var pulNow = pulStateNow ? Math.round(parseFloat(pulStateNow.state)) : '—';
       var catNow = catState ? catState.state : null;
 
-      // Ostatni pomiar — ostatni punkt ze statystyk (nie last_changed, bo restart HA fałszuje timestamp)
+      // Ostatni pomiar — moment ostatniej faktycznej zmiany wartości (nie last_changed
+      // i nie ostatni wpis statystyk, bo HA dopisuje godzinowe wpisy z tą samą wartością
+      // nawet bez nowego pomiaru)
       var lastTs = null;
       [sysStats, diaStats, pulStats].forEach(function(arr) {
-        if (!arr.length) return;
-        var t = new Date(self._ts(arr[arr.length - 1]));
+        var ts = self._lastChangeTs(arr);
+        if (ts == null) return;
+        var t = new Date(ts);
         if (!lastTs || t > lastTs) lastTs = t;
       });
       var lastMeasured = lastTs
@@ -1977,7 +1997,10 @@ class HealthCard extends HTMLElement {
         firstVals[k]  = Math.round(parseFloat(firstVal));
         firstDates[k] = self._day(self._ts(first));
       }
-      lastDates[k] = self._day(self._ts(last));
+      // Data ostatniego pomiaru = ostatnia faktyczna zmiana wartości, nie ostatni
+      // wpis statystyk (HA dopisuje codziennie tę samą wartość bez nowego pomiaru)
+      var lastChangeTs = self._lastChangeTs(arr);
+      lastDates[k] = self._day(lastChangeTs != null ? lastChangeTs : self._ts(last));
 
       var dm = {};
       arr.forEach(function(pt) {

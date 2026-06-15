@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Naprawiono
+- Ciśnienie — "Ostatni pomiar" pokazywał dzisiejszą datę/godzinę mimo że ostatni faktyczny odczyt był wcześniej (HA dopisuje godzinowe statystyki z tą samą wartością bez nowego pomiaru); teraz wyznaczany moment ostatniej faktycznej zmiany wartości
+- Pomiary — data pod każdym kafelkiem pokazywała ostatni wpis statystyk dziennych zamiast daty ostatniej faktycznej zmiany wartości; ta sama przyczyna jak w Ciśnieniu, wydzielono wspólną funkcję `_lastChangeTs` i naprawiono oba miejsca
+
 ## [1.4.1] - 2026-06-04
 
 ### Naprawiono
