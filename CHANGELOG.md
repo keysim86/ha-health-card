@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.4.8] - 2026-06-15
 
 ### Naprawiono
 - Ciśnienie — "Ostatni pomiar" pokazywał dzisiejszą datę/godzinę mimo że ostatni faktyczny odczyt był wcześniej (HA dopisuje godzinowe statystyki z tą samą wartością bez nowego pomiaru); teraz wyznaczany moment ostatniej faktycznej zmiany wartości
