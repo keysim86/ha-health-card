@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.9] - 2026-07-02
+
+### Naprawiono
+- Waga — kafelki "Łączna utrata", "Utrata %", "Średnie tempo" i "Spalono tłuszczu" przy przyroście wagi pokazywały podwójny znak (np. "−-0.15 kg") w kolorze zielonym; teraz przyrost renderuje się jako "+0.15 kg" w kolorze czerwonym, a utrata jak dotąd "−0.15 kg" na zielono (spójnie z kafelkami bilansów)
+
 ## [1.4.8] - 2026-06-15
 
 ### Naprawiono

@@ -495,6 +495,9 @@ class HealthCard extends HTMLElement {
       return (v <= 0 ? '\u2212' : '+') + Math.abs(v).toFixed(2) + ' kg';
     };
     var balColor = function(v) { return v === null ? '' : (v <= 0 ? 'color:#1D9E75' : 'color:#E24B4A'); };
+    // Utrata: v >= 0 = spadek wagi (zielony, znak −), v < 0 = przyrost (czerwony, znak +)
+    var fmtLoss   = function(v, dec, unit) { return (v >= 0 ? '−' : '+') + Math.abs(v).toFixed(dec) + unit; };
+    var lossColor = function(v) { return v >= 0 ? 'color:#1D9E75' : 'color:#E24B4A'; };
 
     var bmiNormsHtml =
       '<div style="display:flex;justify-content:space-between;margin-top:5px;font-size:8px;line-height:1.3">' +
@@ -572,9 +575,9 @@ class HealthCard extends HTMLElement {
       '<div class="metric-grid">' +
         '<div class="metric"><div class="metric-label">Start (' + this.config.start_date + ')</div><div class="metric-value">' + this.config.start_weight.toFixed(2) + ' kg</div><div class="metric-sub">punkt wyjścia</div></div>' +
         '<div class="metric"><div class="metric-label">Aktualnie (' + currentDate + ')</div><div class="metric-value good">' + currentW.toFixed(2) + ' kg</div><div class="metric-sub">ostatni odczyt</div></div>' +
-        '<div class="metric"><div class="metric-label">Łączna utrata</div><div class="metric-value good">&minus;' + totalLoss.toFixed(2) + ' kg</div><div class="metric-sub">przez ' + days + ' dni</div></div>' +
-        '<div class="metric"><div class="metric-label">Utrata %</div><div class="metric-value good">&minus;' + Math.round(totalLoss / this.config.start_weight * 1000) / 10 + '%</div><div class="metric-sub">masy startowej</div></div>' +
-        '<div class="metric"><div class="metric-label">Średnie tempo</div><div class="metric-value good">&minus;' + weeklyAvg.toFixed(2) + ' kg</div><div class="metric-sub">na tydzień</div></div>' +
+        '<div class="metric"><div class="metric-label">Łączna utrata</div><div class="metric-value" style="' + lossColor(totalLoss) + '">' + fmtLoss(totalLoss, 2, ' kg') + '</div><div class="metric-sub">przez ' + days + ' dni</div></div>' +
+        '<div class="metric"><div class="metric-label">Utrata %</div><div class="metric-value" style="' + lossColor(totalLoss) + '">' + fmtLoss(Math.round(totalLoss / this.config.start_weight * 1000) / 10, 1, '%') + '</div><div class="metric-sub">masy startowej</div></div>' +
+        '<div class="metric"><div class="metric-label">Średnie tempo</div><div class="metric-value" style="' + lossColor(weeklyAvg) + '">' + fmtLoss(weeklyAvg, 2, ' kg') + '</div><div class="metric-sub">na tydzień</div></div>' +
         (function() {
           var toNorm = Math.max(0, Math.round((currentW - normKg) * 100) / 100);
           var normDateStr = '';
@@ -598,7 +601,7 @@ class HealthCard extends HTMLElement {
             + '<div class="metric-sub">brakuje ' + rem + ' kg</div>'
             + '</div>';
         })() +
-        '<div class="metric"><div class="metric-label">Spalono tłuszczu</div><div class="metric-value good">&minus;' + Math.round(totalLoss * 0.75 * 10) / 10 + ' kg</div><div class="metric-sub">szacunek (~75% utraty)</div></div>' +
+        '<div class="metric"><div class="metric-label">Spalono tłuszczu</div><div class="metric-value" style="' + lossColor(totalLoss) + '">' + fmtLoss(Math.round(totalLoss * 0.75 * 10) / 10, 1, ' kg') + '</div><div class="metric-sub">szacunek (~75% utraty)</div></div>' +
       '</div>' +
       '<div class="metric-grid" style="margin-bottom:12px">' +
         '<div class="metric"><div class="metric-label">Bilans miesiąca</div><div class="metric-value" style="' + balColor(monthBal) + '">' + fmtBal(monthBal) + '</div><div class="metric-sub">' + (nowMonth || '') + '</div></div>' +
