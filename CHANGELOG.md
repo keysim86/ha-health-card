@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.5.0] - 2026-08-04
 
 ### Naprawiono
 - Bilanse → BMI — na wykresie widoczna była tylko jedna linia progu zamiast wszystkich. Linie referencyjne były w kodzie (18.5, 25, 30, 35), ale oś Y skalowała się wyłącznie do zakresu danych, więc progi leżące poniżej wykresu wypadały poza obszar rysowania. Przy BMI schodzącym z 42 do 31 zostawał widoczny wyłącznie próg 35. Zakres osi rozszerza się teraz do najbliższego progu poniżej i powyżej danych, dzięki czemu zawsze widać granicę, do której się zbliżasz, i tę właśnie przekroczoną
