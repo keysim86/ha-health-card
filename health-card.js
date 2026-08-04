@@ -1770,12 +1770,65 @@ class HealthCard extends HTMLElement {
       var labels = data.map(function(d) { return self._monthName(d[0]); });
       var vals   = data.map(function(d) { return d[1]; });
       var pointColors = vals.map(function(v) { return self._bmiCat(v).color; });
-      var mn = Math.floor(Math.min.apply(null, vals) - 0.5);
-      var mx = Math.ceil(Math.max.apply(null, vals) + 0.5);
+      // Progi WHO. Kazda linia oznacza POCZATEK danej kategorii, czyli
+      // wartosc, powyzej ktorej sie w nia wchodzi.
+      var PROGI = [
+        { v: 18.5, label: 'Norma',          color: '#3B8BD4' },
+        { v: 25.0, label: 'Nadwaga',        color: '#1D9E75' },
+        { v: 30.0, label: 'Otyłość I°',     color: '#BA7517' },
+        { v: 35.0, label: 'Otyłość II°',    color: '#E24B4A' },
+        { v: 40.0, label: 'Otyłość III°',   color: '#A32D2D' }
+      ];
+
+      var mnData = Math.min.apply(null, vals);
+      var mxData = Math.max.apply(null, vals);
+
+      // Wczesniej os byla skalowana wylacznie do danych, przez co progi
+      // lezace pod wykresem byly niewidoczne -- przy BMI 42->31 zostawala
+      // jedna linia (35), a reszta wypadala poza obszar.
+      //
+      // Teraz zakres rozszerzamy do NAJBLIZSZEGO progu ponizej i powyzej
+      // danych. Dzieki temu zawsze widac, do ktorej granicy sie zbliżasz,
+      // a wykres nie splaszcza sie przez rozciaganie do calej skali BMI.
+      var ponizej = PROGI.filter(function(p) { return p.v < mnData; }).map(function(p) { return p.v; });
+      var powyzej = PROGI.filter(function(p) { return p.v > mxData; }).map(function(p) { return p.v; });
+      var mn = ponizej.length ? Math.max.apply(null, ponizej) - 1 : Math.floor(mnData - 1);
+      var mx = powyzej.length ? Math.min.apply(null, powyzej) + 1 : Math.ceil(mxData + 1);
+
+      // Rysujemy tylko progi mieszczace sie w widocznym zakresie -- linia
+      // przyklejona do krawedzi wykresu nic nie wnosi.
+      var progiWidoczne = PROGI.filter(function(p) { return p.v >= mn && p.v <= mx; });
+
       var refLine = function(val, color, label) {
         return { type: 'line', label: label, data: labels.map(function(){ return val; }),
           borderColor: color, borderWidth: 1, borderDash: [4, 3],
           pointRadius: 0, fill: false, order: 10 };
+      };
+
+      // Podpisy przy liniach. Bez nich piec przerywanych linii w podobnych
+      // kolorach jest nieczytelne -- nie wiadomo, ktora granica jest ktora.
+      var pluginPodpisy = {
+        id: 'podpisyProgowBmi',
+        afterDatasetsDraw: function(chart) {
+          var ctx = chart.ctx;
+          var os  = chart.scales.y;
+          ctx.save();
+          ctx.font = '10px sans-serif';
+          ctx.textBaseline = 'bottom';
+          progiWidoczne.forEach(function(p) {
+            var y = os.getPixelForValue(p.v);
+            if (y < chart.chartArea.top || y > chart.chartArea.bottom) return;
+            var tekst = p.label + ' ' + p.v;
+            var szer  = ctx.measureText(tekst).width;
+            var x     = chart.chartArea.right - szer - 6;
+            // delikatne tlo, zeby podpis nie zlewal sie z linia wykresu
+            ctx.fillStyle = 'rgba(0,0,0,0.45)';
+            ctx.fillRect(x - 3, y - 12, szer + 6, 12);
+            ctx.fillStyle = p.color;
+            ctx.fillText(tekst, x, y - 1);
+          });
+          ctx.restore();
+        }
       };
       canvas._chartInst = new window.Chart(canvas, {
         data: {
@@ -1785,13 +1838,10 @@ class HealthCard extends HTMLElement {
               borderColor: '#BA7517', backgroundColor: 'rgba(186,117,23,0.1)',
               borderWidth: 2, pointRadius: 4, pointHoverRadius: 6,
               pointBackgroundColor: pointColors,
-              tension: 0.3, fill: true, order: 1 },
-            refLine(18.5, '#3B8BD4', 'Niedowaga'),
-            refLine(25.0, '#1D9E75', 'Norma'),
-            refLine(30.0, '#BA7517', 'Nadwaga'),
-            refLine(35.0, '#E24B4A', 'Otyłość I°')
-          ]
+              tension: 0.3, fill: true, order: 1 }
+          ].concat(progiWidoczne.map(function(p) { return refLine(p.v, p.color, p.label); }))
         },
+        plugins: [pluginPodpisy],
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: {
