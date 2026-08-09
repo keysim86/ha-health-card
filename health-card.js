@@ -78,6 +78,15 @@ class HealthCard extends HTMLElement {
       bp_exclude_timestamps: Array.isArray(config.bp_exclude_timestamps) ? config.bp_exclude_timestamps : [],
       measurements:         config.measurements         || {},
       measurements_enabled: config.measurements_enabled !== false,
+      // Sklad ciala -- encje sa opcjonalne. Bez nich sekcja sie nie pokazuje,
+      // a kafelek "Spalono tluszczu" wraca do szacunku procentowego.
+      body_fat:          config.body_fat          || '',
+      fat_mass:          config.fat_mass          || '',
+      lean_mass:         config.lean_mass         || '',
+      body_water:        config.body_water        || '',
+      bmr:               config.bmr               || '',
+      body_fat_gender:   config.body_fat_gender   || 'male',
+      body_comp_enabled: config.body_comp_enabled !== false,
     };
 
     // Resetuj flagi cache — nowa konfiguracja wymaga przeładowania danych
@@ -165,6 +174,42 @@ class HealthCard extends HTMLElement {
     if (bmi < 35.0) return { label: 'Otyłość I°',   color: '#E24B4A' };
     if (bmi < 40.0) return { label: 'Otyłość II°',  color: '#A32D2D' };
     return           { label: 'Otyłość III°', color: '#701515' };
+  }
+
+  // Progi procentu tluszczu wg American Council on Exercise. Sluza WYLACZNIE
+  // do pokolorowania kafelka -- karta nie stawia diagnoz i nie doradza.
+  _fatCat(pct, gender) {
+    var m = gender !== 'female';
+    if (pct < (m ? 6  : 14)) return { label: 'Niezbędny',   color: '#378ADD' };
+    if (pct < (m ? 14 : 21)) return { label: 'Sportowy',    color: '#1D9E75' };
+    if (pct < (m ? 18 : 25)) return { label: 'Fitness',     color: '#1D9E75' };
+    if (pct < (m ? 25 : 32)) return { label: 'Przeciętny',  color: '#f59e0b' };
+    return { label: 'Powyżej normy', color: '#E24B4A' };
+  }
+
+  // Statystyki masy tluszczu i beztluszczowej. Obie serie sa opcjonalne --
+  // gdy encji nie ma albo nie zdazyly jeszcze nic uzbierac, sekcja pokazuje
+  // same wartosci biezace, bez wykresu i bez rozbicia utraty.
+  async _loadBodyComp(start, now) {
+    var cfg = this.config;
+    if (!cfg.body_comp_enabled || (!cfg.fat_mass && !cfg.lean_mass)) return null;
+    try {
+      var r = await Promise.all([
+        this._fetchStatsByEntity(cfg.fat_mass,  start, now, 'day'),
+        this._fetchStatsByEntity(cfg.lean_mass, start, now, 'day'),
+      ]);
+      var fat  = this._statToDaily(r[0][cfg.fat_mass]  || []);
+      var lean = this._statToDaily(r[1][cfg.lean_mass] || []);
+      var dni  = Object.keys(fat).concat(Object.keys(lean))
+                   .filter(function(v, i, a) { return a.indexOf(v) === i; }).sort();
+      return {
+        days: dni,
+        fat:  dni.map(function(d) { return fat[d]  !== undefined ? fat[d]  : null; }),
+        lean: dni.map(function(d) { return lean[d] !== undefined ? lean[d] : null; }),
+      };
+    } catch (e) {
+      return null;
+    }
   }
 
   _calcMonthly(daily) {
@@ -283,6 +328,7 @@ class HealthCard extends HTMLElement {
       }
 
       this._daily = daily;
+      this._bodyComp = await this._loadBodyComp(start, now);
       this._updateUI(daily);
       if (this._centilePending) { this._centilePending = false; this._renderCentile(); }
 
@@ -601,7 +647,28 @@ class HealthCard extends HTMLElement {
             + '<div class="metric-sub">brakuje ' + rem + ' kg</div>'
             + '</div>';
         })() +
-        '<div class="metric"><div class="metric-label">Spalono tłuszczu</div><div class="metric-value" style="' + lossColor(totalLoss) + '">' + fmtLoss(Math.round(totalLoss * 0.75 * 10) / 10, 1, ' kg') + '</div><div class="metric-sub">szacunek (~75% utraty)</div></div>' +
+        (function() {
+          // Ten kafelek mowil dotad "~75% utraty" -- czysta zgadywanka wziete
+          // z podrecznikowej proporcji. Majac realny pomiar skladu ciala
+          // zastepujemy szacunek pomiarem: ile masy tluszczu ubylo NAPRAWDE
+          // i ile z tego wyszlo z masy beztluszczowej. To jest wlasciwe
+          // pytanie przy odchudzaniu -- sama waga na nie nie odpowiada.
+          var bc = self._bodyComp;
+          var mierzone = null;
+          if (bc && bc.fat) {
+            var f = bc.fat.filter(function(v) { return v !== null; });
+            if (f.length >= 2) mierzone = Math.round((f[0] - f[f.length - 1]) * 100) / 100;
+          }
+          if (mierzone === null) {
+            return '<div class="metric"><div class="metric-label">Spalono tłuszczu</div>'
+              + '<div class="metric-value" style="' + lossColor(totalLoss) + '">' + fmtLoss(Math.round(totalLoss * 0.75 * 10) / 10, 1, ' kg') + '</div>'
+              + '<div class="metric-sub">szacunek (~75% utraty)</div></div>';
+          }
+          var reszta = Math.round((totalLoss - mierzone) * 100) / 100;
+          return '<div class="metric"><div class="metric-label">Spalono tłuszczu</div>'
+            + '<div class="metric-value" style="' + lossColor(mierzone) + '">' + fmtLoss(mierzone, 2, ' kg') + '</div>'
+            + '<div class="metric-sub">pomiar &middot; reszta ' + (reszta >= 0 ? '&minus;' : '+') + Math.abs(reszta).toFixed(2) + ' kg</div></div>';
+        })() +
       '</div>' +
       '<div class="metric-grid" style="margin-bottom:12px">' +
         '<div class="metric"><div class="metric-label">Bilans miesiąca</div><div class="metric-value" style="' + balColor(monthBal) + '">' + fmtBal(monthBal) + '</div><div class="metric-sub">' + (nowMonth || '') + '</div></div>' +
@@ -613,6 +680,53 @@ class HealthCard extends HTMLElement {
         '<div class="bmi-card"><div class="bmi-label">BMI na starcie</div><div class="bmi-value" style="color:' + this._bmiCat(bmiStart).color + '">' + bmiStart + '</div><div class="bmi-cat" style="color:' + this._bmiCat(bmiStart).color + '">' + this._bmiCat(bmiStart).label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + Math.min(100, Math.max(0, (bmiStart - 15) / 30 * 100)) + '%"></div></div>' + bmiNormsHtml + '<div style="font-size:11px;color:var(--secondary-text-color);margin-top:8px">Zmiana BMI: <b>' + (Math.round((bmiNow-bmiStart)*10)/10) + '</b></div><div style="font-size:11px;color:var(--secondary-text-color);margin-top:2px">Norma (BMI 25) = ' + normKg.toFixed(2) + ' kg</div></div>' +
         '<div class="bmi-card"><div class="bmi-label">BMI teraz (wzrost ' + h + ' cm)</div><div class="bmi-value" style="color:' + bmiCat.color + '">' + bmiNow + '</div><div class="bmi-cat" style="color:' + bmiCat.color + '">' + bmiCat.label + '</div><div class="bmi-bar"></div><div class="bmi-marker-wrap"><div class="bmi-marker" style="left:' + bmiPct + '%"></div></div>' + bmiNormsHtml + '</div>' +
       '</div>' +
+      (function() {
+        var cfg = self.config;
+        if (!cfg.body_comp_enabled) return '';
+        var st = function(id) {
+          if (!id) return null;
+          var s = self._hass && self._hass.states[id];
+          if (!s || s.state === 'unknown' || s.state === 'unavailable') return null;
+          var v = parseFloat(s.state);
+          return isNaN(v) ? null : v;
+        };
+        var pct  = st(cfg.body_fat);
+        var fatM = st(cfg.fat_mass);
+        var lean = st(cfg.lean_mass);
+        var woda = st(cfg.body_water);
+        var bmr  = st(cfg.bmr);
+        // Sekcja pojawia sie dopiero, gdy jest co pokazac -- pusta siatka
+        // kresek jest gorsza niz brak sekcji.
+        if (pct === null && fatM === null && lean === null) return '';
+        var kat  = pct !== null ? self._fatCat(pct, cfg.body_fat_gender) : null;
+        var bc   = self._bodyComp;
+        var maWykres = !!(bc && bc.days && bc.days.length >= 2);
+
+        var kafel = function(label, wartosc, sub, kolor) {
+          return '<div class="metric"><div class="metric-label">' + label + '</div>'
+            + '<div class="metric-value"' + (kolor ? ' style="color:' + kolor + '"' : '') + '>' + wartosc + '</div>'
+            + '<div class="metric-sub">' + (sub || '') + '</div></div>';
+        };
+
+        // Woda podawana jest w kilogramach; procent masy ciala mowi wiecej,
+        // bo to on tlumaczy dobowe wahania wagi.
+        var wodaPct = (woda !== null && fatM !== null && lean !== null)
+          ? Math.round(woda / (fatM + lean) * 1000) / 10 : null;
+
+        return '<h3>&#128170; Skład ciała</h3>'
+          + '<div class="metric-grid" style="margin-bottom:12px">'
+          + (pct  !== null ? kafel('Tłuszcz', pct.toFixed(1) + ' %', kat.label, kat.color) : '')
+          + (fatM !== null ? kafel('Masa tłuszczu', fatM.toFixed(2) + ' kg', 'do zredukowania') : '')
+          + (lean !== null ? kafel('Masa beztłuszczowa', lean.toFixed(2) + ' kg', 'mięśnie, kości, woda', '#1D9E75') : '')
+          + (woda !== null ? kafel('Woda', woda.toFixed(2) + ' kg', wodaPct !== null ? wodaPct + '% masy ciała' : '', '#378ADD') : '')
+          + (bmr  !== null ? kafel('Przemiana podstawowa', Math.round(bmr) + ' kcal', 'spoczynkowe zapotrzebowanie') : '')
+          + '</div>'
+          + (maWykres
+              ? '<div class="legend"><span><span class="ldot" style="background:#E24B4A"></span>Masa tłuszczu</span>'
+                + '<span><span class="ldot" style="background:#1D9E75"></span>Masa beztłuszczowa</span></div>'
+                + '<div class="chart-wrap" style="height:220px"><canvas id="bcChart"></canvas></div>'
+              : '<div class="note">Wykres pojawi się, gdy uzbiera się co najmniej dwa pomiary składu ciała.</div>');
+      })() +
       (this.config.goals_enabled && goalsHtml ? '<h3>&#127937; Post&#281;p do cel&#243;w</h3><div class="prog-grid">' + goalsHtml + '</div>' : '') +
       '<h3>&#128197; Bilanse</h3>' +
       '<div class="tabs">' +
@@ -639,6 +753,7 @@ class HealthCard extends HTMLElement {
       '</div>';
 
     this._drawChart(labels, weights, trend);
+    this._drawBodyCompChart();
     // Podepnij event listener do nawigacji
     var nav = this.shadowRoot.getElementById('health-nav');
     if (nav) {
@@ -650,6 +765,44 @@ class HealthCard extends HTMLElement {
     }
     this._applyNavVisibility();
 
+  }
+
+  // Dwie serie na jednej osi: tluszcz i reszta ciala. Sens tego wykresu jest
+  // w ROZJEZDZANIU SIE linii -- czerwona ma opadac, zielona trzymac poziom.
+  // Gdy obie schodza razem, znaczy ze razem z tluszczem znika masa miesniowa
+  // i to jest jedyny sygnal, ktorego sama waga nigdy nie pokaze.
+  _drawBodyCompChart() {
+    var bc = this._bodyComp;
+    if (!bc || !bc.days || bc.days.length < 2) return;
+    var canvas = this.shadowRoot.getElementById('bcChart');
+    if (!canvas || !window.Chart) return;
+    if (this._bcChart) { this._bcChart.destroy(); this._bcChart = null; }
+    var etykiety = bc.days.map(function(d) { return d.slice(5); });
+    this._bcChart = new window.Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: etykiety,
+        datasets: [
+          { label: 'Masa tłuszczu', data: bc.fat, borderColor: '#E24B4A',
+            backgroundColor: 'rgba(226,75,74,0.08)', borderWidth: 1.6,
+            pointRadius: 2, tension: 0.3, fill: true, spanGaps: true },
+          { label: 'Masa beztłuszczowa', data: bc.lean, borderColor: '#1D9E75',
+            backgroundColor: 'rgba(29,158,117,0.08)', borderWidth: 1.6,
+            pointRadius: 2, tension: 0.3, fill: true, spanGaps: true },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { maxTicksLimit: 10, font: { size: 9 } }, grid: { display: false } },
+          // Os NIE zaczyna sie od zera: obie masy sa duze, wiec przy zerze
+          // roznice rzedu kilograma bylyby niewidoczne.
+          y: { beginAtZero: false, ticks: { font: { size: 9 } } },
+        },
+      },
+    });
   }
 
   _switchPage(page) {

@@ -17,7 +17,7 @@
 
 | Zakładka | Opis |
 |---|---|
-| ⚖ Waga | Waga ciała, BMI, bilanse bieżące, postęp do celów, wykresy historii i BMI, data ostatniego pomiaru |
+| ⚖ Waga | Waga ciała, BMI, bilanse bieżące, **skład ciała**, postęp do celów, wykresy historii i BMI, data ostatniego pomiaru |
 | 📐 Pomiary | 8 pomiarów ciała, wykres radarowy profilu, bilans miesięczny, historia wieloseryjna |
 | 💊 Ciśnienie | Skurczowe, rozkurczowe, puls, statystyki, wykres 90 dni, raport PDF |
 | 🏃 Aktywność | Kroki i kalorie — dzienne wykresy słupkowe, cel dzienny, statystyki |
@@ -40,6 +40,17 @@ Zakładki **Pomiary**, **Ciśnienie** i **Siatki centylowe** można włączać/w
 - Przełącznik zakresu: od początku / 6 mies. / 3 mies. / 30 dni / 14 dni / 7 dni
 - Alert gdy cel krwiodawstwa jest w ciągu 7 dni
 - Nawigacja przyklejona do góry podczas scrollowania
+
+## Funkcje — Skład ciała
+
+Sekcja w zakładce **Waga**, widoczna gdy skonfigurowano choć jedną z encji składu ciała.
+
+- Kafelki: **procent tłuszczu** z kategorią i kolorem, **masa tłuszczu**, **masa beztłuszczowa**, **woda** (w kg oraz jako procent masy ciała), **przemiana podstawowa**
+- **Wykres dwuseryjny: masa tłuszczu i masa beztłuszczowa w czasie.** Sens tego wykresu jest w rozjeżdżaniu się linii — czerwona ma opadać, zielona trzymać poziom. Gdy obie schodzą razem, razem z tłuszczem znika masa mięśniowa, a tego sama waga nigdy nie pokaże
+- Kafelek **„Spalono tłuszczu"** w sekcji wagi przestaje być szacunkiem. Dotąd pokazywał `utrata × 0,75`, czyli podręcznikową proporcję wziętą w ciemno. Gdy skonfigurowana jest encja `fat_mass`, kafelek pokazuje **realną zmianę masy tłuszczu** z pomiarów, a w podpisie ile z utraty przypadło na resztę ciała. Bez tej encji zachowuje się jak dotąd
+- Wykres pojawia się dopiero przy co najmniej dwóch pomiarach — wcześniej sekcja pokazuje same wartości bieżące
+
+> **Uwaga:** progi kategorii tłuszczu (wg American Council on Exercise) służą wyłącznie do pokolorowania kafelka. Karta nie stawia diagnoz.
 
 ## Funkcje — Pomiary ciała
 
@@ -126,6 +137,15 @@ bp_pulse_now:     input_number.bp_pulse
 
 # --- Widoczność zakładki Ciśnienie ---
 bp_enabled: true                       # false = ukrywa zakładkę Ciśnienie
+
+# --- Skład ciała (opcjonalne) ---
+body_fat:   sensor.tluszcz             # procent tłuszczu
+fat_mass:   sensor.masa_tluszczu       # masa tłuszczu w kg
+lean_mass:  sensor.masa_beztluszczowa  # masa beztłuszczowa w kg
+body_water: sensor.woda                # woda w kg
+bmr:        sensor.przemiana_podstawowa
+body_fat_gender: male                  # male | female — progi kategorii tłuszczu
+body_comp_enabled: true                # false = ukrywa sekcję Skład ciała
 
 # --- Aktywność ---
 steps_entity:    sensor.daily_steps

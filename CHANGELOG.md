@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.0] - 2026-08-09
+
+### Dodano
+- **Skład ciała** — nowa sekcja w zakładce Waga. Kafelki procentu tłuszczu z kategorią, masy tłuszczu, masy beztłuszczowej, wody (w kg i jako procent masy ciała) oraz przemiany podstawowej. Sekcja pojawia się tylko gdy skonfigurowano choć jedną z encji, więc nie zmienia niczego istniejącym instalacjom
+- **Wykres masy tłuszczu i masy beztłuszczowej** — dwie serie na jednej osi. Wartość tego wykresu jest w rozjeżdżaniu się linii: tłuszcz ma opadać, masa beztłuszczowa trzymać poziom. Gdy obie schodzą razem, razem z tłuszczem znika masa mięśniowa — a tego sama waga nigdy nie pokaże. Oś Y celowo nie zaczyna się od zera, bo przy zerze różnice rzędu kilograma byłyby niewidoczne
+- Nowe opcje konfiguracji: `body_fat`, `fat_mass`, `lean_mass`, `body_water`, `bmr`, `body_fat_gender`, `body_comp_enabled`
+
+### Zmieniono
+- Kafelek **„Spalono tłuszczu"** przestał zgadywać. Dotąd pokazywał `utrata × 0,75` — podręcznikową proporcję przyjętą w ciemno, niezależnie od tego, co się faktycznie działo z ciałem. Przy skonfigurowanej encji `fat_mass` pokazuje teraz **realną zmianę masy tłuszczu z pomiarów**, a w podpisie ile z utraty przypadło na resztę ciała. Bez tej encji zachowanie pozostaje bez zmian
+
 ## [1.5.0] - 2026-08-04
 
 ### Naprawiono
