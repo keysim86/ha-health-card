@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1] - 2026-08-09
+
+### Naprawiono
+- **Ciśnienie → Statystyki (30 dni)** — średnia oraz Min/Max liczone były z godzinowych statystyk, przez co **ważyły upływem czasu zamiast liczbą pomiarów**. Sensor ciśnienia trzyma wartość aż do następnego odczytu, więc każda godzina bez pomiaru produkowała kolejną średnią równą ostatniemu wynikowi: wartość wyświetlana przez dwanaście godzin wchodziła do średniej dwanaście razy, a pomiar sprzed kwadransa raz. Statystyka mówiła więc, ile ciśnienie było **pokazywane**, a nie ile wynosiło
+- Konsekwencją było też mylące Min/Max: pokazywało skrajne wartości **średnich**, a nie odczytów. Godzina, w której 118 zmieniało się na 123, miała średnią gdzieś pośrodku, więc jako maksimum wychodziło 120 — i **bieżący pomiar potrafił wypaść poza własny zakres 30 dni**
+- Statystyki odtwarzają teraz pojedyncze odczyty: godzina stabilna wnosi jedną wartość, godzina z przejściem obie skrajne, a powtórzenia pod rząd są zwijane. Średnia jest średnią z pomiarów, a Min/Max pokazuje realnie zmierzone skrajności
+
 ## [1.6.0] - 2026-08-09
 
 ### Dodano

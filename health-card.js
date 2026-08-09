@@ -1281,17 +1281,42 @@ class HealthCard extends HTMLElement {
       var cutDate = new Date(now); cutDate.setDate(cutDate.getDate() - 30);
       var cutStr  = cutDate.toLocaleDateString('sv-SE');
 
-      var sysRecent = sysStats.filter(function(s) {
-        return self._day(self._ts(s)) >= cutStr;
-      }).map(function(s){ return s.mean != null ? s.mean : s.state; }).filter(function(v){ return !isNaN(v); });
+      // POMIARY, A NIE UPLYW CZASU. Sensor cisnienia trzyma wartosc az do
+      // nastepnego odczytu, wiec kazda godzina bez pomiaru produkuje kolejna
+      // srednia rowna ostatniemu wynikowi. Liczac wprost ze statystyk
+      // godzinowych, wynik wyswietlany przez dwanascie godzin wchodzil do
+      // sredniej dwanascie razy, a pomiar sprzed kwadransa raz -- srednia
+      // mowila wiec, ile cisnienie bylo POKAZYWANE, a nie ile wynosilo.
+      //
+      // Tu odtwarzamy pojedyncze odczyty: godzina stabilna (min == max) wnosi
+      // jedna wartosc, godzina z przejsciem wnosi obie skrajne, a powtorzenia
+      // pod rzad zwijamy do jednego wpisu. Dzieki temu srednia jest srednia
+      // Z POMIAROW, a Min/Max pokazuje realnie zmierzone skrajnosci -- wczesniej
+      // byly to skrajnosci SREDNICH, przez co biezacy odczyt potrafil wypasc
+      // poza wlasny zakres 30 dni.
+      var odczyty = function(stats) {
+        var wynik = [], poprz = null;
+        stats.forEach(function(s) {
+          if (self._day(self._ts(s)) < cutStr) return;
+          var kandydaci;
+          if (s.min != null && s.max != null && s.min !== s.max) {
+            kandydaci = [s.min, s.max];
+          } else {
+            var v = s.mean != null ? s.mean : (s.min != null ? s.min : s.state);
+            kandydaci = [v];
+          }
+          kandydaci.forEach(function(v) {
+            if (v == null || isNaN(v)) return;
+            var z = Math.round(v * 10) / 10;
+            if (poprz === null || z !== poprz) { wynik.push(z); poprz = z; }
+          });
+        });
+        return wynik;
+      };
 
-      var diaRecent = diaStats.filter(function(s) {
-        return self._day(self._ts(s)) >= cutStr;
-      }).map(function(s){ return s.mean != null ? s.mean : s.state; }).filter(function(v){ return !isNaN(v); });
-
-      var pulRecent = pulStats.filter(function(s) {
-        return self._day(self._ts(s)) >= cutStr;
-      }).map(function(s){ return s.mean != null ? s.mean : s.state; }).filter(function(v){ return !isNaN(v); });
+      var sysRecent = odczyty(sysStats);
+      var diaRecent = odczyty(diaStats);
+      var pulRecent = odczyty(pulStats);
 
       var avg = function(arr) { return arr.length ? Math.round(arr.reduce(function(a,b){return a+b;},0)/arr.length) : '—'; };
       var mn  = function(arr) { return arr.length ? Math.round(Math.min.apply(null,arr)) : '—'; };
@@ -1395,7 +1420,12 @@ class HealthCard extends HTMLElement {
       statistic_ids: [entityId],
       period:        period,
       units:         {},
-      types:         ['mean', 'state'],
+      // "min" i "max" sa tu KONIECZNE, nie ozdobne. Sensor cisnienia trzyma
+      // wartosc miedzy pomiarami, wiec sama "mean" z kubelka godzinowego
+      // rozmywa pomiar: godzina, w ktorej 118 zmienilo sie na 123, ma srednia
+      // gdzies posrodku i realny odczyt znika. Skrajne wartosci w kubelku
+      // pozwalaja go odzyskac.
+      types:         ['mean', 'min', 'max', 'state'],
     });
   }
 
