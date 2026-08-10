@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.7.1] - 2026-08-10
+
+### Naprawiono
+- **Kafelek „Masa mięśniowa" był nazwany błędnie.** Liczba (`waga − tłuszcz − kości`) była poprawna, ale to **tkanka miękka beztłuszczowa**: mięśnie *plus* narządy, skóra i woda pozakomórkowa. Aplikacje wag pokazują obok tego „masę mięśniową" mniej więcej o połowę niższą — to masa **mięśni szkieletowych**, liczona własnym algorytmem bioimpedancji. Przy wadze 100,5 kg wychodziło 68,4 kg wobec 39,6 kg z aplikacji, co słusznie wyglądało na błąd
+- Kafelek i seria na wykresie nazywają się teraz **„Tkanka beztłuszczowa"**, z podpisem mówiącym wprost, że to nie są mięśnie szkieletowe
+
+### Uwaga
+- **Masy mięśni szkieletowych nie da się pobrać przez Health Connect** — nie ma dla niej rekordu, więc aplikacja towarzysząca Home Assistanta nie ma czego wystawić. Jeśli ta wartość jest potrzebna, jedyną drogą jest ręczne wprowadzanie jej z aplikacji wagi
+
 ## [1.7.0] - 2026-08-10
 
 ### Naprawiono
