@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.8.1] - 2026-08-10
+
+### Naprawiono
+- **Wykres składu ciała nie rysował się po odświeżeniu strony.** Karta doładowuje Chart.js asynchronicznie, a rysowanie wykresu składu ciała było wywoływane zaraz po `_drawChart` — czyli zanim skrypt zdążył się wczytać. Funkcja wychodziła wtedy po cichu przez własny warunek `if (!window.Chart) return` i wykres nie pojawiał się wcale. Działał wyłącznie wtedy, gdy biblioteka wisiała już w pamięci z poprzedniego renderowania, stąd mylące „raz jest, raz go nie ma". Rysowanie przeniesione do `_initChart`, które uruchamia się dopiero po załadowaniu biblioteki — w obu ścieżkach
+
 ## [1.8.0] - 2026-08-10
 
 ### Dodano

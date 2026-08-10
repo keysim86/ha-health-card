@@ -776,7 +776,6 @@ class HealthCard extends HTMLElement {
       '</div>';
 
     this._drawChart(labels, weights, trend);
-    this._drawBodyCompChart();
     // Podepnij event listener do nawigacji
     var nav = this.shadowRoot.getElementById('health-nav');
     if (nav) {
@@ -2121,6 +2120,17 @@ class HealthCard extends HTMLElement {
   }
 
   _initChart(labels, weights, trend) {
+    // Wykres skladu ciala rysujemy STAD, a nie zaraz po _drawChart.
+    // Chart.js jest doladowywany asynchronicznie: przy pierwszym wejsciu
+    // (albo po Ctrl+F5) window.Chart jeszcze nie istnieje, wiec wywolanie
+    // ustawione tuz po _drawChart wychodzilo po cichu przez wlasny warunek
+    // "if (!window.Chart) return" i wykres nie pojawial sie wcale. Dzialal
+    // tylko wtedy, gdy biblioteka wisiala juz w pamieci z poprzedniego
+    // renderowania -- stad mylace "raz jest, raz go nie ma".
+    // _initChart uruchamia sie albo od razu, albo z onload skryptu, wiec
+    // w obu drogach biblioteka jest tu pewna.
+    this._drawBodyCompChart();
+
     var canvas = this.shadowRoot.getElementById('wChart');
     if (!canvas) return;
     var goalDatasets = this.config.goals.map(function(g, i) {
