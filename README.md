@@ -45,12 +45,14 @@ Zakładki **Pomiary**, **Ciśnienie** i **Siatki centylowe** można włączać/w
 
 Sekcja w zakładce **Waga**, widoczna gdy skonfigurowano choć jedną z encji składu ciała.
 
-- Kafelki: **procent tłuszczu** z kategorią i kolorem, **masa tłuszczu**, **masa beztłuszczowa**, **tkanka beztłuszczowa**, **masa kostna**, **woda** (w kg oraz jako procent masy ciała), **przemiana podstawowa**
-- **Wykres: masa tłuszczu, masa beztłuszczowa i tkanka beztłuszczowa w czasie.** Sens tego wykresu jest w rozjeżdżaniu się linii — czerwona ma opadać, zielona trzymać poziom. Gdy obie schodzą razem, razem z tłuszczem ubywa tkanki beztłuszczowej, a tego sama waga nigdy nie pokaże
+- Kafelki: **procent tłuszczu** z kategorią i kolorem, **masa tłuszczu**, **masa beztłuszczowa**, **mięśnie szkieletowe**, **tkanka beztłuszczowa**, **masa kostna**, **woda** (w kg oraz jako procent masy ciała), **przemiana podstawowa**
+- **Wykres: masa tłuszczu i masa beztłuszczowa w czasie.** Sens tego wykresu jest w rozjeżdżaniu się linii — czerwona ma opadać, zielona trzymać poziom. Gdy obie schodzą razem, razem z tłuszczem ubywa tkanki beztłuszczowej, a tego sama waga nigdy nie pokaże
 - Kafelek **„Spalono tłuszczu"** w sekcji wagi przestaje być szacunkiem. Dotąd pokazywał `utrata × 0,75`, czyli podręcznikową proporcję wziętą w ciemno. Gdy skonfigurowana jest encja `fat_mass`, kafelek pokazuje **realną zmianę masy tłuszczu** z pomiarów, a w podpisie ile z utraty przypadło na resztę ciała. Bez tej encji zachowuje się jak dotąd
 - Wykres pojawia się dopiero przy co najmniej dwóch pomiarach — wcześniej sekcja pokazuje same wartości bieżące
 
 > **Uwaga:** progi kategorii tłuszczu (wg American Council on Exercise) służą wyłącznie do pokolorowania kafelka. Karta nie stawia diagnoz.
+>
+> **`skeletal_muscle` jest szacunkiem, nie pomiarem.** Algorytmu wagi nie da się odtworzyć — jest zamknięty i korzysta z surowej impedancji, której Health Connect nie przekazuje. Mięśnie szkieletowe stanowią jednak u dorosłych mniej więcej stałą część masy beztłuszczowej (50–55% wg literatury), więc wystarczy współczynnik dobrany raz przez porównanie z aplikacją wagi. **Po kilku ważeniach warto sprawdzić, czy liczby się nie rozjeżdżają** — jeśli algorytm wagi uwzględnia wiek albo wzrost, proporcja będzie powoli dryfować.
 >
 > **`muscle_mass` to NIE są mięśnie szkieletowe.** Wartość `waga − tłuszcz − kości` opisuje **tkankę miękką beztłuszczową**: mięśnie *plus* narządy, skórę i wodę pozakomórkową. Aplikacje wag pokazują obok tego „masę mięśniową" mniej więcej o połowę niższą — masy mięśni szkieletowych **nie da się pobrać przez Health Connect**, bo nie ma dla niej rekordu. Jeśli ta wartość jest potrzebna, jedyną drogą jest ręczne wprowadzanie jej z aplikacji wagi.
 
@@ -145,7 +147,8 @@ body_fat:   sensor.tluszcz             # procent tłuszczu
 fat_mass:   sensor.masa_tluszczu       # masa tłuszczu w kg
 lean_mass:  sensor.masa_beztluszczowa  # masa beztłuszczowa w kg
 body_water:  sensor.woda               # woda w kg
-muscle_mass: sensor.tkanka_beztluszczowa  # waga − tłuszcz − kości (NIE mięśnie szkieletowe)
+muscle_mass:     sensor.tkanka_beztluszczowa   # waga − tłuszcz − kości
+skeletal_muscle: sensor.miesnie_szkieletowe    # szacunek masy mięśni szkieletowych
 bone_mass:   sensor.masa_kostna         # masa kostna w kg
 bmr:         sensor.przemiana_podstawowa
 body_fat_gender: male                  # male | female — progi kategorii tłuszczu

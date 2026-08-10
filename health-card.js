@@ -86,6 +86,7 @@ class HealthCard extends HTMLElement {
       body_water:        config.body_water        || '',
       muscle_mass:       config.muscle_mass       || '',
       bone_mass:         config.bone_mass         || '',
+      skeletal_muscle:   config.skeletal_muscle   || '',
       bmr:               config.bmr               || '',
       body_fat_gender:   config.body_fat_gender   || 'male',
       body_comp_enabled: config.body_comp_enabled !== false,
@@ -711,6 +712,7 @@ class HealthCard extends HTMLElement {
         var woda = st(cfg.body_water);
         var mies = st(cfg.muscle_mass);
         var kosc = st(cfg.bone_mass);
+        var smm  = st(cfg.skeletal_muscle);
         var bmr  = st(cfg.bmr);
         // Sekcja pojawia sie dopiero, gdy jest co pokazac -- pusta siatka
         // kresek jest gorsza niz brak sekcji.
@@ -735,7 +737,8 @@ class HealthCard extends HTMLElement {
           + (pct  !== null ? kafel('Tłuszcz', pct.toFixed(1) + ' %', kat.label, kat.color) : '')
           + (fatM !== null ? kafel('Masa tłuszczu', fatM.toFixed(2) + ' kg', 'do zredukowania') : '')
           + (lean !== null ? kafel('Masa beztłuszczowa', lean.toFixed(2) + ' kg', 'mięśnie, kości, woda', '#1D9E75') : '')
-          + (mies !== null ? kafel('Tkanka beztłuszczowa', mies.toFixed(2) + ' kg', 'bez kości &middot; to nie mięśnie szkieletowe', '#7C6AE8') : '')
+          + (smm  !== null ? kafel('Mięśnie szkieletowe', smm.toFixed(2) + ' kg', 'szacunek z masy beztłuszczowej', '#7C6AE8') : '')
+          + (mies !== null ? kafel('Tkanka beztłuszczowa', mies.toFixed(2) + ' kg', 'bez kości &middot; to nie mięśnie', '#9aa0a6') : '')
           + (kosc !== null ? kafel('Masa kostna', kosc.toFixed(2) + ' kg', 'zmienia się bardzo wolno') : '')
           + (woda !== null ? kafel('Woda', woda.toFixed(2) + ' kg', wodaPct !== null ? wodaPct + '% masy ciała' : '', '#378ADD') : '')
           + (bmr  !== null ? kafel('Przemiana podstawowa', Math.round(bmr) + ' kcal', 'spoczynkowe zapotrzebowanie') : '')
@@ -743,7 +746,7 @@ class HealthCard extends HTMLElement {
           + (maWykres
               ? '<div class="legend"><span><span class="ldot" style="background:#E24B4A"></span>Masa tłuszczu</span>'
                 + '<span><span class="ldot" style="background:#1D9E75"></span>Masa beztłuszczowa</span>'
-                + (cfg.muscle_mass ? '<span><span class="ldot" style="background:#7C6AE8"></span>Tkanka beztłuszczowa</span>' : '') + '</div>'
+                + '</div>'
                 + '<div class="chart-wrap" style="height:220px"><canvas id="bcChart"></canvas></div>'
               : '<div class="note">Wykres pojawi się, gdy uzbiera się co najmniej dwa pomiary składu ciała.</div>');
       })() +
@@ -811,19 +814,13 @@ class HealthCard extends HTMLElement {
           { label: 'Masa beztłuszczowa', data: bc.lean, borderColor: '#1D9E75',
             backgroundColor: 'rgba(29,158,117,0.08)', borderWidth: 1.6,
             pointRadius: 2, tension: 0.3, fill: true, spanGaps: true },
-          // Tkanka beztluszczowa biegnie rownolegle do masy beztluszczowej,
-          // nizej dokladnie o mase kostna. Celowo BEZ wypelnienia -- trzecie
-          // tlo zamienialoby wykres w papke, a ta linia ma byc czytana razem
-          // z zielona, nie zamiast niej.
-          //
-          // TO NIE SA MIESNIE SZKIELETOWE. Nazwa "masa miesniowa" byla w 1.7.0
-          // mylaca: ta wartosc zawiera narzady, skore i wode pozakomorkowa,
-          // wiec wychodzi mniej wiecej dwukrotnie wyzsza niz "masa miesniowa"
-          // z aplikacji wagi. Tamtej nie da sie pobrac -- Health Connect nie
-          // ma dla niej rekordu.
-          { label: 'Tkanka beztłuszczowa', data: bc.muscle, borderColor: '#7C6AE8',
-            borderWidth: 1.6, borderDash: [5, 3],
-            pointRadius: 2, tension: 0.3, fill: false, spanGaps: true },
+          // BYLA TU TRZECIA SERIA (tkanka beztluszczowa) -- ZDJETA w 1.8.0.
+          // Zarowno tkanka beztluszczowa, jak i miesnie szkieletowe wychodza
+          // z masy beztluszczowej przez pomnozenie albo odjecie stalej, wiec
+          // ich linie sa PRZESKALOWANA KOPIA zielonej. Trzecia krzywa o tym
+          // samym ksztalcie nie wnosila zadnej informacji, a odbierala
+          // czytelnosc temu, co na tym wykresie jest istotne: czy czerwona
+          // opada szybciej niz zielona. Obie wartosci zostaly jako kafelki.
         ],
       },
       options: {

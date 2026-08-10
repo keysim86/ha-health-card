@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.0] - 2026-08-10
+
+### Dodano
+- **Mięśnie szkieletowe** — kafelek z szacunkiem masy mięśni szkieletowych, nowa opcja `skeletal_muscle`. Algorytmu wagi nie da się odtworzyć (jest zamknięty i korzysta z surowej impedancji, której Health Connect nie przekazuje), ale mięśnie szkieletowe stanowią u dorosłych mniej więcej stałą część masy beztłuszczowej — 50–55% wg literatury. Współczynnik dobiera się raz, porównując z aplikacją wagi
+
+### Zmieniono
+- **Wykres składu ciała wrócił do dwóch serii.** Trzecia linia została zdjęta, bo zarówno tkanka beztłuszczowa, jak i mięśnie szkieletowe powstają z masy beztłuszczowej przez pomnożenie albo odjęcie stałej — ich krzywe są **przeskalowaną kopią** zielonej i nie wnosiły żadnej informacji, a odbierały czytelność temu, co na tym wykresie jest istotne: czy czerwona opada szybciej niż zielona. Obie wartości zostały jako kafelki
+
 ## [1.7.1] - 2026-08-10
 
 ### Naprawiono
