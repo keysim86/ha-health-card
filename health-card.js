@@ -195,12 +195,15 @@ class HealthCard extends HTMLElement {
   // same wartosci biezace, bez wykresu i bez rozbicia utraty.
   async _loadBodyComp(start, now) {
     var cfg = this.config;
-    if (!cfg.body_comp_enabled || (!cfg.fat_mass && !cfg.lean_mass && !cfg.muscle_mass)) return null;
+    if (!cfg.body_comp_enabled || (!cfg.fat_mass && !cfg.lean_mass && !cfg.muscle_mass
+        && !cfg.body_water && !cfg.skeletal_muscle)) return null;
     try {
       var r = await Promise.all([
         this._fetchStatsByEntity(cfg.fat_mass,    start, now, 'day'),
         this._fetchStatsByEntity(cfg.lean_mass,   start, now, 'day'),
         this._fetchStatsByEntity(cfg.muscle_mass, start, now, 'day'),
+        this._fetchStatsByEntity(cfg.body_water,  start, now, 'day'),
+        this._fetchStatsByEntity(cfg.skeletal_muscle, start, now, 'day'),
       ]);
       // UWAGA: _statToDaily zwraca TABLICE PAR [dzien, wartosc], a nie slownik.
       // Potraktowanie jej jak slownika dawalo klucze "0", "1" (indeksy tablicy),
@@ -213,8 +216,11 @@ class HealthCard extends HTMLElement {
       };
       var fat  = naSlownik(this._statToDaily(r[0][cfg.fat_mass]    || []));
       var lean = naSlownik(this._statToDaily(r[1][cfg.lean_mass]   || []));
-      var musc = naSlownik(this._statToDaily(r[2][cfg.muscle_mass] || []));
+      var musc = naSlownik(this._statToDaily(r[2][cfg.muscle_mass]     || []));
+      var woda = naSlownik(this._statToDaily(r[3][cfg.body_water]      || []));
+      var smm  = naSlownik(this._statToDaily(r[4][cfg.skeletal_muscle] || []));
       var dni  = Object.keys(fat).concat(Object.keys(lean)).concat(Object.keys(musc))
+                   .concat(Object.keys(woda)).concat(Object.keys(smm))
                    .filter(function(v, i, a) { return a.indexOf(v) === i; }).sort();
       var seria = function(m) {
         return dni.map(function(d) {
@@ -222,7 +228,8 @@ class HealthCard extends HTMLElement {
           return (typeof v === 'number' && !isNaN(v)) ? v : null;
         });
       };
-      return { days: dni, fat: seria(fat), lean: seria(lean), muscle: seria(musc) };
+      return { days: dni, fat: seria(fat), lean: seria(lean), muscle: seria(musc),
+               water: seria(woda), smm: seria(smm) };
     } catch (e) {
       return null;
     }
@@ -746,6 +753,8 @@ class HealthCard extends HTMLElement {
           + (maWykres
               ? '<div class="legend"><span><span class="ldot" style="background:#E24B4A"></span>Masa tłuszczu</span>'
                 + '<span><span class="ldot" style="background:#1D9E75"></span>Masa beztłuszczowa</span>'
+                + (cfg.skeletal_muscle ? '<span><span class="ldot" style="background:#7C6AE8"></span>Mięśnie szkieletowe</span>' : '')
+                + (cfg.body_water ? '<span><span class="ldot" style="background:#378ADD"></span>Woda</span>' : '')
                 + '</div>'
                 + '<div class="chart-wrap" style="height:220px"><canvas id="bcChart"></canvas></div>'
               : '<div class="note">Wykres pojawi się, gdy uzbiera się co najmniej dwa pomiary składu ciała.</div>');
@@ -797,7 +806,8 @@ class HealthCard extends HTMLElement {
     var bc = this._bodyComp;
     if (!bc || !bc.days || bc.days.length < 2) return;
     var maDane = function(s) { return s && s.some(function(v) { return v !== null; }); };
-    if (!maDane(bc.fat) && !maDane(bc.lean) && !maDane(bc.muscle)) return;
+    if (!maDane(bc.fat) && !maDane(bc.lean) && !maDane(bc.muscle)
+        && !maDane(bc.water) && !maDane(bc.smm)) return;
     var canvas = this.shadowRoot.getElementById('bcChart');
     if (!canvas || !window.Chart) return;
     if (this._bcChart) { this._bcChart.destroy(); this._bcChart = null; }
@@ -813,13 +823,22 @@ class HealthCard extends HTMLElement {
           { label: 'Masa beztłuszczowa', data: bc.lean, borderColor: '#1D9E75',
             backgroundColor: 'rgba(29,158,117,0.08)', borderWidth: 1.6,
             pointRadius: 2, tension: 0.3, fill: true, spanGaps: true },
-          // BYLA TU TRZECIA SERIA (tkanka beztluszczowa) -- ZDJETA w 1.8.0.
-          // Zarowno tkanka beztluszczowa, jak i miesnie szkieletowe wychodza
-          // z masy beztluszczowej przez pomnozenie albo odjecie stalej, wiec
-          // ich linie sa PRZESKALOWANA KOPIA zielonej. Trzecia krzywa o tym
-          // samym ksztalcie nie wnosila zadnej informacji, a odbierala
-          // czytelnosc temu, co na tym wykresie jest istotne: czy czerwona
-          // opada szybciej niz zielona. Obie wartosci zostaly jako kafelki.
+          // Miesnie szkieletowe to masa beztluszczowa pomnozona przez stala,
+          // wiec KSZTALT tej linii jest identyczny z zielona -- rozni sie
+          // wylacznie poziomem. Jest tu po to, zeby widziec wartosc bezwzgledna
+          // w kontekscie pozostalych, a nie po to, zeby czytac z niej trend.
+          // Gdyby wykres zrobil sie zatloczony, ta linia idzie pierwsza.
+          // Bez wypelnienia i kreskowana, zeby nie udawala niezaleznego pomiaru.
+          { label: 'Mięśnie szkieletowe', data: bc.smm, borderColor: '#7C6AE8',
+            borderWidth: 1.4, borderDash: [5, 3],
+            pointRadius: 2, tension: 0.3, fill: false, spanGaps: true },
+          // Woda to JEDYNA z dodatkowych serii, ktora jest niezaleznym pomiarem
+          // z wagi, a nie pochodna masy beztluszczowej. Dlatego ma wlasny
+          // ksztalt i realnie cos wnosi: tlumaczy dobowe skoki masy, ktore bez
+          // niej wygladaja na przyrost albo utrate tluszczu.
+          { label: 'Woda', data: bc.water, borderColor: '#378ADD',
+            borderWidth: 1.4, borderDash: [2, 2],
+            pointRadius: 2, tension: 0.3, fill: false, spanGaps: true },
         ],
       },
       options: {

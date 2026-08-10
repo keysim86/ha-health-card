@@ -46,7 +46,7 @@ Zakładki **Pomiary**, **Ciśnienie** i **Siatki centylowe** można włączać/w
 Sekcja w zakładce **Waga**, widoczna gdy skonfigurowano choć jedną z encji składu ciała.
 
 - Kafelki: **procent tłuszczu** z kategorią i kolorem, **masa tłuszczu**, **masa beztłuszczowa**, **mięśnie szkieletowe**, **tkanka beztłuszczowa**, **masa kostna**, **woda** (w kg oraz jako procent masy ciała), **przemiana podstawowa**
-- **Wykres: masa tłuszczu i masa beztłuszczowa w czasie.** Sens tego wykresu jest w rozjeżdżaniu się linii — czerwona ma opadać, zielona trzymać poziom. Gdy obie schodzą razem, razem z tłuszczem ubywa tkanki beztłuszczowej, a tego sama waga nigdy nie pokaże
+- **Wykres: masa tłuszczu, masa beztłuszczowa, mięśnie szkieletowe i woda w czasie.** Sens tego wykresu jest w rozjeżdżaniu się linii — czerwona ma opadać, zielona trzymać poziom. Gdy obie schodzą razem, razem z tłuszczem ubywa tkanki beztłuszczowej, a tego sama waga nigdy nie pokaże. **Mięśnie szkieletowe** (linia kreskowana) mają kształt identyczny z masą beztłuszczową, bo są jej stałą częścią — służą do odczytania wartości bezwzględnej, nie trendu. **Woda** (linia kropkowana) jest jedyną z dodatkowych serii, która jest niezależnym pomiarem: tłumaczy dobowe skoki masy, które bez niej wyglądają na przyrost albo utratę tłuszczu
 - Kafelek **„Spalono tłuszczu"** w sekcji wagi przestaje być szacunkiem. Dotąd pokazywał `utrata × 0,75`, czyli podręcznikową proporcję wziętą w ciemno. Gdy skonfigurowana jest encja `fat_mass`, kafelek pokazuje **realną zmianę masy tłuszczu** z pomiarów, a w podpisie ile z utraty przypadło na resztę ciała. Bez tej encji zachowuje się jak dotąd
 - Wykres pojawia się dopiero przy co najmniej dwóch pomiarach — wcześniej sekcja pokazuje same wartości bieżące
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0] - 2026-08-10
+
+### Dodano
+- **Woda i mięśnie szkieletowe na wykresie składu ciała** — dwie dodatkowe serie, rysowane tylko gdy odpowiednie encje są skonfigurowane
+- **Woda** (linia kropkowana) jest jedyną z nich, która jest **niezależnym pomiarem** z wagi, a nie pochodną masy beztłuszczowej. Dlatego ma własny kształt i realnie coś wnosi: tłumaczy dobowe skoki masy, które bez niej wyglądają na przyrost albo utratę tłuszczu
+- **Mięśnie szkieletowe** (linia kreskowana) mają kształt **identyczny** z masą beztłuszczową, bo są jej stałą częścią — różnią się wyłącznie poziomem. Są na wykresie po to, żeby widzieć wartość bezwzględną w kontekście pozostałych, a nie po to, żeby czytać z nich trend. Obie serie celowo bez wypełnienia, żeby nie udawały niezależnych pomiarów
+
 ## [1.8.1] - 2026-08-10
 
 ### Naprawiono
