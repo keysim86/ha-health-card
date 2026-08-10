@@ -45,12 +45,14 @@ Zakładki **Pomiary**, **Ciśnienie** i **Siatki centylowe** można włączać/w
 
 Sekcja w zakładce **Waga**, widoczna gdy skonfigurowano choć jedną z encji składu ciała.
 
-- Kafelki: **procent tłuszczu** z kategorią i kolorem, **masa tłuszczu**, **masa beztłuszczowa**, **woda** (w kg oraz jako procent masy ciała), **przemiana podstawowa**
-- **Wykres dwuseryjny: masa tłuszczu i masa beztłuszczowa w czasie.** Sens tego wykresu jest w rozjeżdżaniu się linii — czerwona ma opadać, zielona trzymać poziom. Gdy obie schodzą razem, razem z tłuszczem znika masa mięśniowa, a tego sama waga nigdy nie pokaże
+- Kafelki: **procent tłuszczu** z kategorią i kolorem, **masa tłuszczu**, **masa beztłuszczowa**, **masa mięśniowa**, **masa kostna**, **woda** (w kg oraz jako procent masy ciała), **przemiana podstawowa**
+- **Wykres: masa tłuszczu, masa beztłuszczowa i masa mięśniowa w czasie.** Sens tego wykresu jest w rozjeżdżaniu się linii — czerwona ma opadać, zielona trzymać poziom. Gdy obie schodzą razem, razem z tłuszczem znika masa mięśniowa, a tego sama waga nigdy nie pokaże
 - Kafelek **„Spalono tłuszczu"** w sekcji wagi przestaje być szacunkiem. Dotąd pokazywał `utrata × 0,75`, czyli podręcznikową proporcję wziętą w ciemno. Gdy skonfigurowana jest encja `fat_mass`, kafelek pokazuje **realną zmianę masy tłuszczu** z pomiarów, a w podpisie ile z utraty przypadło na resztę ciała. Bez tej encji zachowuje się jak dotąd
 - Wykres pojawia się dopiero przy co najmniej dwóch pomiarach — wcześniej sekcja pokazuje same wartości bieżące
 
 > **Uwaga:** progi kategorii tłuszczu (wg American Council on Exercise) służą wyłącznie do pokolorowania kafelka. Karta nie stawia diagnoz.
+>
+> **Masa mięśniowa** liczona jest wzorem przyjętym przez wagi domowe: `waga − tłuszcz − kości`. Różnica wobec masy beztłuszczowej to właśnie masa kostna, więc obie linie biegną niemal równolegle. Wartość zawiera wodę związaną w mięśniach, więc reaguje na nawodnienie — to szacunek z wagi bioimpedancyjnej, dobry do śledzenia trendu, nie do diagnozy.
 
 ## Funkcje — Pomiary ciała
 
@@ -142,8 +144,10 @@ bp_enabled: true                       # false = ukrywa zakładkę Ciśnienie
 body_fat:   sensor.tluszcz             # procent tłuszczu
 fat_mass:   sensor.masa_tluszczu       # masa tłuszczu w kg
 lean_mass:  sensor.masa_beztluszczowa  # masa beztłuszczowa w kg
-body_water: sensor.woda                # woda w kg
-bmr:        sensor.przemiana_podstawowa
+body_water:  sensor.woda               # woda w kg
+muscle_mass: sensor.masa_miesniowa      # masa mięśniowa w kg
+bone_mass:   sensor.masa_kostna         # masa kostna w kg
+bmr:         sensor.przemiana_podstawowa
 body_fat_gender: male                  # male | female — progi kategorii tłuszczu
 body_comp_enabled: true                # false = ukrywa sekcję Skład ciała
 

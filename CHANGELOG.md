@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.7.0] - 2026-08-10
+
+### Naprawiono
+- **Skład ciała — kafelek „Spalono tłuszczu" pokazywał `+NaN kg`.** Funkcja `_statToDaily` zwraca **tablicę par `[dzień, wartość]`**, a nowy kod składu ciała potraktował ją jak słownik. `Object.keys()` dawało wtedy indeksy tablicy (`"0"`, `"1"`), a pod nimi całe pary zamiast liczb — odejmowanie kończyło się `NaN` i psuło również podpis „reszta". Serie wykresu były z tego samego powodu zbudowane błędnie. Błąd wszedł razem z 1.6.0
+
+### Dodano
+- **Masa mięśniowa** — kafelek i trzecia seria na wykresie składu ciała. Liczona wzorem przyjętym przez wagi domowe: `waga − tłuszcz − kości`, bo waga nie podaje jej wprost. Linia celowo bez wypełnienia i kreskowana — biegnie równolegle do masy beztłuszczowej, niżej o masę kostną, i ma być czytana razem z nią, nie zamiast niej
+- **Masa kostna** — kafelek. Zmienia się bardzo wolno, więc świadomie nie trafia na wykres: byłaby płaską linią zajmującą miejsce
+- Nowe opcje konfiguracji: `muscle_mass`, `bone_mass`
+
 ## [1.6.1] - 2026-08-09
 
 ### Naprawiono

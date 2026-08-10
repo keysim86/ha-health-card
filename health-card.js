@@ -84,6 +84,8 @@ class HealthCard extends HTMLElement {
       fat_mass:          config.fat_mass          || '',
       lean_mass:         config.lean_mass         || '',
       body_water:        config.body_water        || '',
+      muscle_mass:       config.muscle_mass       || '',
+      bone_mass:         config.bone_mass         || '',
       bmr:               config.bmr               || '',
       body_fat_gender:   config.body_fat_gender   || 'male',
       body_comp_enabled: config.body_comp_enabled !== false,
@@ -192,21 +194,34 @@ class HealthCard extends HTMLElement {
   // same wartosci biezace, bez wykresu i bez rozbicia utraty.
   async _loadBodyComp(start, now) {
     var cfg = this.config;
-    if (!cfg.body_comp_enabled || (!cfg.fat_mass && !cfg.lean_mass)) return null;
+    if (!cfg.body_comp_enabled || (!cfg.fat_mass && !cfg.lean_mass && !cfg.muscle_mass)) return null;
     try {
       var r = await Promise.all([
-        this._fetchStatsByEntity(cfg.fat_mass,  start, now, 'day'),
-        this._fetchStatsByEntity(cfg.lean_mass, start, now, 'day'),
+        this._fetchStatsByEntity(cfg.fat_mass,    start, now, 'day'),
+        this._fetchStatsByEntity(cfg.lean_mass,   start, now, 'day'),
+        this._fetchStatsByEntity(cfg.muscle_mass, start, now, 'day'),
       ]);
-      var fat  = this._statToDaily(r[0][cfg.fat_mass]  || []);
-      var lean = this._statToDaily(r[1][cfg.lean_mass] || []);
-      var dni  = Object.keys(fat).concat(Object.keys(lean))
-                   .filter(function(v, i, a) { return a.indexOf(v) === i; }).sort();
-      return {
-        days: dni,
-        fat:  dni.map(function(d) { return fat[d]  !== undefined ? fat[d]  : null; }),
-        lean: dni.map(function(d) { return lean[d] !== undefined ? lean[d] : null; }),
+      // UWAGA: _statToDaily zwraca TABLICE PAR [dzien, wartosc], a nie slownik.
+      // Potraktowanie jej jak slownika dawalo klucze "0", "1" (indeksy tablicy),
+      // a pod nimi cale pary zamiast liczb -- odejmowanie konczylo sie NaN
+      // i kafelek "Spalono tluszczu" pokazywal "+NaN kg" (naprawione w 1.7.0).
+      var naSlownik = function(pary) {
+        var m = {};
+        (pary || []).forEach(function(para) { m[para[0]] = para[1]; });
+        return m;
       };
+      var fat  = naSlownik(this._statToDaily(r[0][cfg.fat_mass]    || []));
+      var lean = naSlownik(this._statToDaily(r[1][cfg.lean_mass]   || []));
+      var musc = naSlownik(this._statToDaily(r[2][cfg.muscle_mass] || []));
+      var dni  = Object.keys(fat).concat(Object.keys(lean)).concat(Object.keys(musc))
+                   .filter(function(v, i, a) { return a.indexOf(v) === i; }).sort();
+      var seria = function(m) {
+        return dni.map(function(d) {
+          var v = m[d];
+          return (typeof v === 'number' && !isNaN(v)) ? v : null;
+        });
+      };
+      return { days: dni, fat: seria(fat), lean: seria(lean), muscle: seria(musc) };
     } catch (e) {
       return null;
     }
@@ -694,6 +709,8 @@ class HealthCard extends HTMLElement {
         var fatM = st(cfg.fat_mass);
         var lean = st(cfg.lean_mass);
         var woda = st(cfg.body_water);
+        var mies = st(cfg.muscle_mass);
+        var kosc = st(cfg.bone_mass);
         var bmr  = st(cfg.bmr);
         // Sekcja pojawia sie dopiero, gdy jest co pokazac -- pusta siatka
         // kresek jest gorsza niz brak sekcji.
@@ -718,12 +735,15 @@ class HealthCard extends HTMLElement {
           + (pct  !== null ? kafel('Tłuszcz', pct.toFixed(1) + ' %', kat.label, kat.color) : '')
           + (fatM !== null ? kafel('Masa tłuszczu', fatM.toFixed(2) + ' kg', 'do zredukowania') : '')
           + (lean !== null ? kafel('Masa beztłuszczowa', lean.toFixed(2) + ' kg', 'mięśnie, kości, woda', '#1D9E75') : '')
+          + (mies !== null ? kafel('Masa mięśniowa', mies.toFixed(2) + ' kg', 'waga &minus; tłuszcz &minus; kości', '#7C6AE8') : '')
+          + (kosc !== null ? kafel('Masa kostna', kosc.toFixed(2) + ' kg', 'zmienia się bardzo wolno') : '')
           + (woda !== null ? kafel('Woda', woda.toFixed(2) + ' kg', wodaPct !== null ? wodaPct + '% masy ciała' : '', '#378ADD') : '')
           + (bmr  !== null ? kafel('Przemiana podstawowa', Math.round(bmr) + ' kcal', 'spoczynkowe zapotrzebowanie') : '')
           + '</div>'
           + (maWykres
               ? '<div class="legend"><span><span class="ldot" style="background:#E24B4A"></span>Masa tłuszczu</span>'
-                + '<span><span class="ldot" style="background:#1D9E75"></span>Masa beztłuszczowa</span></div>'
+                + '<span><span class="ldot" style="background:#1D9E75"></span>Masa beztłuszczowa</span>'
+                + (cfg.muscle_mass ? '<span><span class="ldot" style="background:#7C6AE8"></span>Masa mięśniowa</span>' : '') + '</div>'
                 + '<div class="chart-wrap" style="height:220px"><canvas id="bcChart"></canvas></div>'
               : '<div class="note">Wykres pojawi się, gdy uzbiera się co najmniej dwa pomiary składu ciała.</div>');
       })() +
@@ -774,6 +794,8 @@ class HealthCard extends HTMLElement {
   _drawBodyCompChart() {
     var bc = this._bodyComp;
     if (!bc || !bc.days || bc.days.length < 2) return;
+    var maDane = function(s) { return s && s.some(function(v) { return v !== null; }); };
+    if (!maDane(bc.fat) && !maDane(bc.lean) && !maDane(bc.muscle)) return;
     var canvas = this.shadowRoot.getElementById('bcChart');
     if (!canvas || !window.Chart) return;
     if (this._bcChart) { this._bcChart.destroy(); this._bcChart = null; }
@@ -789,6 +811,12 @@ class HealthCard extends HTMLElement {
           { label: 'Masa beztłuszczowa', data: bc.lean, borderColor: '#1D9E75',
             backgroundColor: 'rgba(29,158,117,0.08)', borderWidth: 1.6,
             pointRadius: 2, tension: 0.3, fill: true, spanGaps: true },
+          // Masa miesniowa biegnie rownolegle do beztluszczowej, nizej o mase
+          // kostna. Celowo BEZ wypelnienia -- trzecie tlo zamienialoby wykres
+          // w papke, a ta linia ma byc czytana razem z zielona, nie zamiast.
+          { label: 'Masa mięśniowa', data: bc.muscle, borderColor: '#7C6AE8',
+            borderWidth: 1.6, borderDash: [5, 3],
+            pointRadius: 2, tension: 0.3, fill: false, spanGaps: true },
         ],
       },
       options: {
