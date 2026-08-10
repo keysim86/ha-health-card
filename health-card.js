@@ -123,6 +123,24 @@ class HealthCard extends HTMLElement {
   // Moment ostatniej faktycznej zmiany wartości w szeregu statystyk.
   // HA dopisuje kolejne wpisy (godzinowe/dzienne) z tą samą wartością nawet
   // gdy nie było nowego pomiaru, więc ostatni wpis ≠ data ostatniego pomiaru.
+  // Jak _lastChangeTs, ale gdy w CALEJ serii nie ma zmiany wartosci, zwraca
+  // null zamiast czasu pierwszego wpisu. Potrzebne przy szukaniu w waskim
+  // oknie: brak zmiany w ostatnich 48 h ma znaczyc "nie wiem", a nie
+  // "pomiar sprzed 48 h".
+  _lastChangeTsStrict(arr) {
+    if (!arr || arr.length < 2) return null;
+    var val = function(s) { var v = s.state != null ? s.state : s.mean; return parseFloat(v); };
+    var lastVal = val(arr[arr.length - 1]);
+    if (isNaN(lastVal)) return null;
+    for (var i = arr.length - 2; i >= 0; i--) {
+      var v = val(arr[i]);
+      if (isNaN(v)) continue;
+      if (Math.abs(v - lastVal) > 0.01) return this._ts(arr[i + 1]);
+      lastVal = v;
+    }
+    return null;
+  }
+
   _lastChangeTs(arr) {
     if (!arr || !arr.length) return null;
     var val = function(s) { var v = s.state != null ? s.state : s.mean; return parseFloat(v); };
@@ -1286,10 +1304,20 @@ class HealthCard extends HTMLElement {
       var start = new Date(now);
       start.setDate(start.getDate() - 90);
 
+      // Okno 48 h w rozdzielczosci 5 minut -- WYLACZNIE do wyznaczenia GODZINY
+      // ostatniego pomiaru. Statystyki godzinowe daja tylko poczatek kubelka,
+      // wiec pomiar z 13:35 pokazywal sie jako "13:00" -- zawsze zaokraglony
+      // w dol, do pelnej godziny. Sam wykres i statystyki 30-dniowe zostaja
+      // na kubelkach godzinowych, bo tam rozdzielczosc minutowa nic nie wnosi.
+      var cutST = new Date(now.getTime() - 48 * 3600 * 1000);
+
       var results = await Promise.all([
         this._fetchStatsByEntity(this.config.bp_systolic,  start, now, 'hour'),
         this._fetchStatsByEntity(this.config.bp_diastolic, start, now, 'hour'),
         this._fetchStatsByEntity(this.config.bp_pulse,     start, now, 'hour'),
+        this._fetchStatsByEntity(this.config.bp_systolic,  cutST, now, '5minute'),
+        this._fetchStatsByEntity(this.config.bp_diastolic, cutST, now, '5minute'),
+        this._fetchStatsByEntity(this.config.bp_pulse,     cutST, now, '5minute'),
       ]);
 
       var sysStats  = results[0][this.config.bp_systolic]  || [];
@@ -1316,9 +1344,16 @@ class HealthCard extends HTMLElement {
       // Ostatni pomiar — moment ostatniej faktycznej zmiany wartości (nie last_changed
       // i nie ostatni wpis statystyk, bo HA dopisuje godzinowe wpisy z tą samą wartością
       // nawet bez nowego pomiaru)
+      var sysShort = results[3][this.config.bp_systolic]  || [];
+      var diaShort = results[4][this.config.bp_diastolic] || [];
+      var pulShort = results[5][this.config.bp_pulse]     || [];
+
       var lastTs = null;
-      [sysStats, diaStats, pulStats].forEach(function(arr) {
-        var ts = self._lastChangeTs(arr);
+      [[sysShort, sysStats], [diaShort, diaStats], [pulShort, pulStats]].forEach(function(para) {
+        // Najpierw okno 5-minutowe -- da czas z dokladnoscia do piatki minut.
+        // Gdy w nim nic sie nie zmienilo, pomiar jest starszy niz 48 h i wtedy
+        // godzinowa dokladnosc i tak wystarcza.
+        var ts = self._lastChangeTsStrict(para[0]) || self._lastChangeTs(para[1]);
         if (ts == null) return;
         var t = new Date(ts);
         if (!lastTs || t > lastTs) lastTs = t;

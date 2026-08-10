@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.1] - 2026-08-10
+
+### Naprawiono
+- **Ciśnienie — „Ostatni pomiar" pokazywał zawsze pełną godzinę.** Czas wyznaczany był z **godzinowych** statystyk, a te podają początek kubełka — pomiar z 13:35 wyświetlał się jako „13:00", zawsze zaokrąglony w dół. Karta dociąga teraz dodatkowo statystyki **5-minutowe z ostatnich 48 godzin** i z nich bierze moment zmiany; gdy pomiar jest starszy niż 48 h, wraca do rozdzielczości godzinowej, bo tam i tak nic to nie zmienia
+- Wykres i statystyki 30-dniowe zostają na kubełkach godzinowych — rozdzielczość minutowa nic by tam nie wniosła, a kosztowałaby kolejne zapytania
+
 ## [1.9.0] - 2026-08-10
 
 ### Dodano
