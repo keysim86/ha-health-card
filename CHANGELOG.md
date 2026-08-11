@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.9.2] - 2026-08-11
+
+### Naprawiono
+- **Kafelek „Spalono tłuszczu" porównywał dwa różne okresy.** „Reszta" liczyła się jako całkowita utrata wagi minus spalony tłuszcz — ale te dwie liczby pochodzą z **różnych przedziałów czasu**: waga jest mierzona od `start_date` (u nas 284 dni), a seria masy tłuszczu zaczyna się dopiero w dniu utworzenia encji. Wychodziło z tego „spalono 0,10 kg, reszta 33,90 kg", czyli sugestia, że 33,9 kg zeszło z masy mięśniowej. To była po prostu waga sprzed istnienia pomiaru tłuszczu
+- Oba składniki liczone są teraz **w tym samym oknie** — od pierwszego do ostatniego dnia z pomiarem tłuszczu — a podpis kafelka podaje datę początkową. Rozbicie ma dzięki temu sens od pierwszego dnia i rośnie w wartość razem z długością serii
+
+### Uwaga
+- Przy krótszej niż dwa dni serii masy tłuszczu kafelek nadal pokazuje **stary szacunek** (`~75% utraty`) — jednego punktu nie da się porównać z niczym. Przełącza się sam, gdy pojawi się drugi pomiar
+
 ## [1.9.1] - 2026-08-10
 
 ### Naprawiono

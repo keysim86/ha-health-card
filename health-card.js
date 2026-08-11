@@ -695,20 +695,52 @@ class HealthCard extends HTMLElement {
           // i ile z tego wyszlo z masy beztluszczowej. To jest wlasciwe
           // pytanie przy odchudzaniu -- sama waga na nie nie odpowiada.
           var bc = self._bodyComp;
-          var mierzone = null;
-          if (bc && bc.fat) {
-            var f = bc.fat.filter(function(v) { return v !== null; });
-            if (f.length >= 2) mierzone = Math.round((f[0] - f[f.length - 1]) * 100) / 100;
+          var mierzone = null, odDnia = null, doDnia = null;
+          if (bc && bc.fat && bc.days) {
+            // Bierzemy PIERWSZY i OSTATNI dzien, w ktorym jest pomiar tluszczu,
+            // i zapamietujemy te daty -- sa potrzebne nizej.
+            var idx = [];
+            bc.fat.forEach(function(v, i) { if (v !== null) idx.push(i); });
+            if (idx.length >= 2) {
+              var i0 = idx[0], i1 = idx[idx.length - 1];
+              mierzone = Math.round((bc.fat[i0] - bc.fat[i1]) * 100) / 100;
+              odDnia = bc.days[i0];
+              doDnia = bc.days[i1];
+            }
           }
           if (mierzone === null) {
             return '<div class="metric"><div class="metric-label">Spalono tłuszczu</div>'
               + '<div class="metric-value" style="' + lossColor(totalLoss) + '">' + fmtLoss(Math.round(totalLoss * 0.75 * 10) / 10, 1, ' kg') + '</div>'
               + '<div class="metric-sub">szacunek (~75% utraty)</div></div>';
           }
-          var reszta = Math.round((totalLoss - mierzone) * 100) / 100;
+
+          // BLAD, KTORY TO NAPRAWIA (1.9.2): "reszta" liczyla sie jako
+          // calkowita utrata wagi MINUS spalony tluszcz. Te dwie liczby
+          // pochodza jednak z ROZNYCH OKRESOW: waga jest mierzona od
+          // start_date (u nas 284 dni), a seria tluszczu zaczyna sie dopiero
+          // w dniu utworzenia encji. Wychodzilo z tego "spalono 0,10 kg,
+          // reszta 33,90 kg", czyli sugestia, ze 33,9 kg zeszlo z miesni.
+          // Bzdura -- to byla po prostu waga sprzed istnienia pomiaru tluszczu.
+          //
+          // Teraz oba skladniki liczymy w TYM SAMYM oknie: od pierwszego do
+          // ostatniego dnia z pomiarem tluszczu. Wtedy rozbicie ma sens
+          // i rosnie w wartosc razem z dlugoscia serii.
+          var wagaOd = null, wagaDo = null;
+          (daily || []).forEach(function(d) {
+            if (d[0] === odDnia) wagaOd = d[1];
+            if (d[0] === doDnia) wagaDo = d[1];
+          });
+          var podpis;
+          if (wagaOd !== null && wagaDo !== null) {
+            var reszta = Math.round(((wagaOd - wagaDo) - mierzone) * 100) / 100;
+            podpis = 'od ' + odDnia.slice(5) + ' &middot; reszta '
+                   + (reszta >= 0 ? '&minus;' : '+') + Math.abs(reszta).toFixed(2) + ' kg';
+          } else {
+            podpis = 'pomiar od ' + odDnia.slice(5);
+          }
           return '<div class="metric"><div class="metric-label">Spalono tłuszczu</div>'
             + '<div class="metric-value" style="' + lossColor(mierzone) + '">' + fmtLoss(mierzone, 2, ' kg') + '</div>'
-            + '<div class="metric-sub">pomiar &middot; reszta ' + (reszta >= 0 ? '&minus;' : '+') + Math.abs(reszta).toFixed(2) + ' kg</div></div>';
+            + '<div class="metric-sub">' + podpis + '</div></div>';
         })() +
       '</div>' +
       '<div class="metric-grid" style="margin-bottom:12px">' +
