@@ -232,11 +232,15 @@ class HealthCard extends HTMLElement {
         (pary || []).forEach(function(para) { m[para[0]] = para[1]; });
         return m;
       };
-      var fat  = naSlownik(this._statToDaily(r[0][cfg.fat_mass]    || []));
-      var lean = naSlownik(this._statToDaily(r[1][cfg.lean_mass]   || []));
-      var musc = naSlownik(this._statToDaily(r[2][cfg.muscle_mass]     || []));
-      var woda = naSlownik(this._statToDaily(r[3][cfg.body_water]      || []));
-      var smm  = naSlownik(this._statToDaily(r[4][cfg.skeletal_muscle] || []));
+      // 300 kg -- granica powyzej ktorej zaden skladnik ciala czlowieka nie
+      // ma prawa sie znalezc. Odczyt w gramach przekracza ja tysiackrotnie,
+      // wiec wypada; kazdy prawdziwy pomiar przechodzi bez zmian.
+      var MAX_MASA = 300;
+      var fat  = naSlownik(this._statToDaily(r[0][cfg.fat_mass]    || [], MAX_MASA));
+      var lean = naSlownik(this._statToDaily(r[1][cfg.lean_mass]   || [], MAX_MASA));
+      var musc = naSlownik(this._statToDaily(r[2][cfg.muscle_mass]     || [], MAX_MASA));
+      var woda = naSlownik(this._statToDaily(r[3][cfg.body_water]      || [], MAX_MASA));
+      var smm  = naSlownik(this._statToDaily(r[4][cfg.skeletal_muscle] || [], MAX_MASA));
       var dni  = Object.keys(fat).concat(Object.keys(lean)).concat(Object.keys(musc))
                    .concat(Object.keys(woda)).concat(Object.keys(smm))
                    .filter(function(v, i, a) { return a.indexOf(v) === i; }).sort();
@@ -1511,16 +1515,31 @@ class HealthCard extends HTMLElement {
     }
   }
 
-  _statToDaily(stats) {
+  // maxSensowna (opcjonalny): gorna granica fizycznie mozliwej wartosci.
+  // Odczyty ja przekraczajace sa POMIJANE, zamiast psuc srednia dnia.
+  //
+  // Powod: aplikacja towarzyszaca potrafi zmienic jednostke w locie. Telefon
+  // Klaudii podawal przez niecale dwie minuty GRAMY, a sensor zapisal je jako
+  // kilogramy -- 41193 kg masy beztluszczowej. Wartosc trafila do statystyk
+  // dlugoterminowych i juz tam zostala. Srednia dnia wyszla 818 kg, wiec
+  // kafelek "Spalono tluszczu" pokazal -790,20 kg, a os wykresu siegnela 1400
+  // i wcisnela prawdziwe pomiary w zero.
+  //
+  // Filtrujemy na poziomie GODZINY, nie dnia: zatruty kubelek wypada, a
+  // pozostale godziny tej samej doby licza sie normalnie. Odfiltrowanie
+  // dopiero po usrednieniu kasowaloby caly dzien razem z dobrymi odczytami.
+  _statToDaily(stats, maxSensowna) {
     var self = this;
     var map  = new Map();
     for (var i = 0; i < stats.length; i++) {
       var s   = stats[i];
       var val = s.mean != null ? s.mean : s.state;
       if (val == null || isNaN(val)) continue;
+      var liczba = parseFloat(val);
+      if (maxSensowna != null && (liczba <= 0 || liczba > maxSensowna)) continue;
       var day = this._day(this._ts(s));
       if (!map.has(day)) map.set(day, []);
-      map.get(day).push(parseFloat(val));
+      map.get(day).push(liczba);
     }
     return Array.from(map.entries()).sort(function(a,b){ return a[0].localeCompare(b[0]); }).map(function(e){
       var avg = e[1].reduce(function(a,b){return a+b;},0) / e[1].length;

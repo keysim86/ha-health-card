@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Naprawiono
+- **Skład ciała rozjeżdżał się po chwilowej zmianie jednostki w telefonie.** Aplikacja towarzysząca na telefonie Klaudii podała przez niecałe dwie minuty **gramy**, a sensory zapisały je jako kilogramy — 41 193 kg masy beztłuszczowej, 27 807 kg tłuszczu, 30 640 kg wody. Wartości trafiły do statystyk długoterminowych i tam zostały, bo poprawka jednostek weszła dopiero po fakcie
+- Skutki na karcie: kafelek „Spalono tłuszczu" pokazywał **−790,20 kg**, a oś wykresu składu ciała sięgała 1400, wciskając prawdziwe pomiary w zero
+- `_statToDaily` przyjmuje teraz opcjonalną **górną granicę sensownej wartości** i pomija odczyty, które ją przekraczają. Dla składu ciała granicą jest **300 kg** — żaden składnik ciała człowieka jej nie osiągnie, a odczyt w gramach przekracza ją tysiąckrotnie
+- Filtr działa na **kubełkach godzinowych, nie dziennych**: zatruta godzina wypada, a pozostałe godziny tej samej doby liczą się normalnie. Odfiltrowanie po uśrednieniu kasowałoby cały dzień razem z dobrymi odczytami
+
+### Uwaga
+- Karta przestaje pokazywać śmieci, ale **same statystyki w bazie zostają skażone** — historia encji i inne karty nadal zobaczą skok z 11 sierpnia. Trwałe usunięcie wymaga wyczyszczenia tych wpisów w rejestratorze
+
 ## [1.9.2] - 2026-08-11
 
 ### Naprawiono
