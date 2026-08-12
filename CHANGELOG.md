@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.9.3] - 2026-08-12
 
 ### Naprawiono
 - **Skład ciała rozjeżdżał się po chwilowej zmianie jednostki w telefonie.** Aplikacja towarzysząca na telefonie Klaudii podała przez niecałe dwie minuty **gramy**, a sensory zapisały je jako kilogramy — 41 193 kg masy beztłuszczowej, 27 807 kg tłuszczu, 30 640 kg wody. Wartości trafiły do statystyk długoterminowych i tam zostały, bo poprawka jednostek weszła dopiero po fakcie
