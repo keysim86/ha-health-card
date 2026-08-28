@@ -1831,19 +1831,88 @@ class HealthCard extends HTMLElement {
     });
   }
 
-  _statToDailyMax(stats) {
+  // Wynik doby dla licznika, ktory ZERUJE SIE O POLNOCY (kroki, kalorie).
+  //
+  // DLACZEGO NIE MAKSIMUM, choc tak bylo do 1.9.3. Licznik nie zeruje sie
+  // punktualnie o polnocy -- zeruje sie w chwili, gdy telefon PRZYSLE pierwszy
+  // odczyt nowej doby. Do tego czasu encja trzyma wynik wczorajszy, bo szablony
+  // "Kroki *" celowo utrzymuja ostatnia znana wartosc zamiast spadac do zera
+  // przy milczacym telefonie. Kubelki godzinowe z poczatku doby niosa wiec
+  // jeszcze wczorajsza liczbe, a maksimum chwytalo wlasnie ja.
+  //
+  // Zmierzone 28.08.2026: telefon odezwal sie dopiero o 8:00, kubelek 00:00
+  // mial 14 773 (wynik z 27.08) i to on wygrywal maksimum, mimo ze encja stala
+  // na 2304. Slupek "dzis" pokazywal wczorajszy dzien i trwalby tak do chwili,
+  // az dzisiejsze kroki przekrocza wczorajsza sume.
+  //
+  // OSTATNI KUBELEK DOBY jest na to odporny z definicji: bierze stan licznika
+  // z konca dnia, czyli dokladnie to, co telefon podaje jako wynik dobowy.
+  //
+  // Wykres kalorii tej usterki nie mial, bo jego zrodlo idzie wprost z telefonu
+  // i po polnocy bywa niedostepne -- brak kubelka to brak czego chwytac. To
+  // roznica miedzy encja surowa a szablonem, nie miedzy rodzajami danych.
+  _statToDailyLast(stats) {
     var map = new Map();
     for (var i = 0; i < stats.length; i++) {
       var s   = stats[i];
       var val = s.mean != null ? s.mean : s.state;
       if (val == null || isNaN(val)) continue;
-      var day = this._day(this._ts(s));
+      var ts  = this._ts(s);
+      var day = this._day(ts);
       var v   = parseFloat(val);
-      if (!map.has(day) || v > map.get(day)) map.set(day, v);
+      // Porownujemy CZASY, a nie polegamy na kolejnosci w odpowiedzi.
+      if (!map.has(day) || ts >= map.get(day)[0]) map.set(day, [ts, v]);
     }
     return Array.from(map.entries())
       .sort(function(a, b) { return a[0].localeCompare(b[0]); })
-      .map(function(e) { return [e[0], Math.round(e[1])]; });
+      .map(function(e) { return [e[0], Math.round(e[1][1])]; });
+  }
+
+  // Dzisiejszy slupek bierzemy WPROST ZE STANU ENCJI, nie ze statystyk.
+  //
+  // Kubelki godzinowe domykaja sie dopiero z koncem godziny, wiec przez
+  // wiekszosc kazdej godziny najswiezszy kubelek jest starszy od tego, co
+  // karta pokazuje w kafelku "Kroki dzis". Bez tego kafelek i ostatni slupek
+  // rozjezdzaja sie o kilkadziesiat minut ruchu -- widac to zwlaszcza wieczorem.
+  //
+  // Gdy encja milczy (null albo NaN), zostawiamy dane ze statystyk nietkniete.
+  // Wartosc licznika dobowego NA DZIS, z zabezpieczeniem przed wynikiem
+  // wczorajszym.
+  //
+  // Szablony "Kroki *" utrzymuja ostatnia znana wartosc, gdy telefon milczy --
+  // to celowe, bo chroni statystyki przed zerami. Ale zaraz po polnocy znaczy
+  // to, ze encja WCIAZ pokazuje wynik wczorajszy, dopoki telefon nie przysle
+  // pierwszego odczytu nowej doby. 28.08.2026 trwalo to do 8:00 rano.
+  //
+  // Rozpoznajemy to po "last_changed": jesli ostatnia zmiana stanu wypada przed
+  // dzisiejsza polnoca, to na dzis nie ma jeszcze zadnego odczytu. Zwracamy
+  // wtedy 0 -- "nic jeszcze nie odnotowano" jest prawda, a wczorajsza suma
+  // podpisana "dzis" jest falszem. Liczba sama sie poprawi, gdy telefon
+  // wyslanie pierwszy odczyt.
+  //
+  // Uzywane i przez kafelek, i przez ostatni slupek, zeby nie mogly pokazywac
+  // dwoch roznych rzeczy o tej samej nazwie.
+  _wartoscDzis(stan) {
+    if (!stan) return null;
+    var v = parseFloat(stan.state);
+    if (isNaN(v)) return null;
+    var polnoc = new Date();
+    polnoc.setHours(0, 0, 0, 0);
+    var zmiana = Date.parse(stan.last_changed);
+    if (!isNaN(zmiana) && zmiana < polnoc.getTime()) return 0;
+    return Math.round(v);
+  }
+
+  _dopiszDzisiaj(dane, teraz) {
+    if (teraz === null || teraz === undefined || isNaN(teraz)) return dane;
+    var dzis = this._day(Date.now());
+    var v    = Math.round(teraz);
+    if (dane.length && dane[dane.length - 1][0] === dzis) {
+      dane[dane.length - 1][1] = v;
+    } else {
+      dane.push([dzis, v]);
+    }
+    return dane;
   }
 
   async _loadActivityData(days) {
@@ -1869,13 +1938,18 @@ class HealthCard extends HTMLElement {
         this.config.calories_entity ? this._fetchStatsByEntity(this.config.calories_entity, start, now, 'hour') : Promise.resolve({}),
       ];
       var results  = await Promise.all(fetches);
-      var stepsData = this._statToDailyMax(results[0][this.config.steps_entity]    || []);
-      var calData   = this._statToDailyMax(results[1][this.config.calories_entity] || []);
+      var stepsData = this._statToDailyLast(results[0][this.config.steps_entity]    || []);
+      var calData   = this._statToDailyLast(results[1][this.config.calories_entity] || []);
 
       var stepsState = this.config.steps_entity    ? this._hass.states[this.config.steps_entity]    : null;
       var calState   = this.config.calories_entity ? this._hass.states[this.config.calories_entity] : null;
-      var stepsNow   = stepsState ? Math.round(parseFloat(stepsState.state)) : null;
-      var calNow     = calState   ? Math.round(parseFloat(calState.state))   : null;
+      var stepsNow   = this._wartoscDzis(stepsState);
+      var calNow     = this._wartoscDzis(calState);
+
+      // Dopiero teraz, gdy znamy stan encji -- kolejnosc ma znaczenie, bo
+      // srednia i maksimum ponizej licza sie juz z poprawionym dzisiaj.
+      stepsData = this._dopiszDzisiaj(stepsData, stepsNow);
+      calData   = this._dopiszDzisiaj(calData,   calNow);
 
       var stepsVals = stepsData.map(function(d) { return d[1]; });
       var calVals   = calData.map(function(d) { return d[1]; });

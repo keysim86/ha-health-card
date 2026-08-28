@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Naprawiono
+- **Słupek „dziś" na wykresie kroków pokazywał wynik z wczoraj.** Karta brała z każdej doby **maksimum** kubełków godzinowych, a licznik kroków nie zeruje się punktualnie o północy — zeruje się dopiero wtedy, gdy telefon przyśle pierwszy odczyt nowej doby. Do tego czasu encja trzyma wynik wczorajszy, bo szablony `Kroki *` celowo utrzymują ostatnią znaną wartość zamiast spadać do zera przy milczącym telefonie
+- Zmierzone 28.08.2026: telefon odezwał się o 8:00, kubełek `00:00` miał 14 773 kroki z 27.08 i to on wygrywał maksimum, mimo że encja stała na 2304. Słupek trwałby tak do chwili, aż dzisiejsze kroki przekroczą wczorajszą sumę
+- `_statToDailyMax` zastąpione przez `_statToDailyLast` — **ostatni kubełek doby** zamiast największego. To stan licznika z końca dnia, czyli dokładnie ta liczba, którą telefon podaje jako wynik dobowy. Ubocznie znikają chwilowe korekty w górę: 27.08 spadło z 14 793 na 14 773, czyli na wartość, którą HA ma w statystykach dobowych
+- **Dzisiejszy słupek czytany jest wprost ze stanu encji.** Kubełki godzinowe domykają się z końcem godziny, więc przez większość każdej godziny najświeższy kubełek był starszy od kafelka „Kroki dziś" — kafelek i wykres rozjeżdżały się o kilkadziesiąt minut ruchu
+- **Zabezpieczenie przed wynikiem wczorajszym tuż po północy.** Nowe `_wartoscDzis` sprawdza `last_changed`: jeśli ostatnia zmiana stanu wypada przed dzisiejszą północą, to na dziś nie ma jeszcze żadnego odczytu i wartością jest **0**. Używa go i kafelek, i ostatni słupek, więc nie mogą pokazywać dwóch różnych liczb pod tą samą nazwą
+
+### Uwaga
+- Wykres kalorii tej usterki nie miał, bo jego źródło idzie **wprost z telefonu** i po północy bywa niedostępne — brak kubełka to brak czego chwytać. Różnica leżała między encją surową a szablonem, nie między rodzajami danych. Poprawka obejmuje oba wykresy, bo licznik kalorii zeruje się tak samo
+
 ## [1.9.3] - 2026-08-12
 
 ### Naprawiono
