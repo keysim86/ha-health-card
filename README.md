@@ -88,6 +88,8 @@ Sekcja w zakładce **Waga**, widoczna gdy skonfigurowano choć jedną z encji sk
 - Przełącznik zakresu: 7 / 14 / 30 / 90 dni
 - Statystyki: średnia i max dla wybranego okresu
 
+Wynikiem doby jest **ostatni odczyt licznika tego dnia**, a nie największy. Liczniki kroków i kalorii zerują się dopiero wtedy, gdy telefon prześle pierwszy odczyt nowej doby — do tego czasu encja pokazuje wynik wczorajszy, więc maksimum doby potrafiłoby przypisać nowemu dniowi wczorajszą sumę. Dzisiejszy słupek karta czyta wprost ze stanu encji, żeby zgadzał się z kafelkiem u góry; dopóki na dany dzień nie ma żadnego odczytu, pokazuje **0**.
+
 ## Funkcje — Wprowadź dane
 
 - Formularz zapisu ciśnienia (skurczowe / rozkurczowe / puls) do encji `input_number` — tylko gdy wszystkie trzy pola są wypełnione

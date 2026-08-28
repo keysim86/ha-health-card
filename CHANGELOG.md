@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.9.4] - 2026-08-29
 
 ### Naprawiono
 - **Słupek „dziś" na wykresie kroków pokazywał wynik z wczoraj.** Karta brała z każdej doby **maksimum** kubełków godzinowych, a licznik kroków nie zeruje się punktualnie o północy — zeruje się dopiero wtedy, gdy telefon przyśle pierwszy odczyt nowej doby. Do tego czasu encja trzyma wynik wczorajszy, bo szablony `Kroki *` celowo utrzymują ostatnią znaną wartość zamiast spadać do zera przy milczącym telefonie
