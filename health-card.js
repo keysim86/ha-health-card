@@ -78,6 +78,14 @@ class HealthCard extends HTMLElement {
       bp_exclude_timestamps: Array.isArray(config.bp_exclude_timestamps) ? config.bp_exclude_timestamps : [],
       measurements:         config.measurements         || {},
       measurements_enabled: config.measurements_enabled !== false,
+      // Zakladka "Wprowadz dane" -- domyslnie widoczna, wylacza ja
+      // enable_data_card: false. Ukrywa TYLKO te zakladke; reszta karty
+      // (waga, pomiary, cisnienie, aktywnosc, siatki) dziala dalej.
+      // Przyjmujemy tez zapis z wielka litera, bo YAML rozroznia wielkosc
+      // znakow i literowka dawalaby ciche "nie dziala".
+      enable_data_card: (config.enable_data_card !== undefined
+                          ? config.enable_data_card
+                          : config.Enable_data_card) !== false,
       // Sklad ciala -- encje sa opcjonalne. Bez nich sekcja sie nie pokazuje,
       // a kafelek "Spalono tluszczu" wraca do szacunku procentowego.
       body_fat:          config.body_fat          || '',
@@ -911,6 +919,10 @@ class HealthCard extends HTMLElement {
 
   _switchPage(page) {
     var self = this;
+    // Samo ukrycie przycisku nie wystarczy: na zakladke "Wprowadz dane" mozna
+    // trafic takze inaczej niz klikajac w nia (zapamietany stan, przelaczenie
+    // z kodu). Przy wylaczonej fladze zawsze wracamy na wage.
+    if (page === 'settings' && !this.config.enable_data_card) page = 'weight';
     if (page === 'pressure' && !this._pressureLoaded) {
       this._pressureLoaded = true;
       this._loadPressureData();
@@ -954,9 +966,11 @@ class HealthCard extends HTMLElement {
     var bp   = nav.querySelector('[data-page="pressure"]');
     var cen  = nav.querySelector('[data-page="centile"]');
     var meas = nav.querySelector('[data-page="measurements"]');
+    var dane = nav.querySelector('[data-page="settings"]');
     if (bp)   bp.style.display   = this.config.bp_enabled           ? '' : 'none';
     if (cen)  cen.style.display  = this.config.centile_enabled      ? '' : 'none';
     if (meas) meas.style.display = this._hasMeasurements()          ? '' : 'none';
+    if (dane) dane.style.display = this.config.enable_data_card     ? '' : 'none';
   }
 
   _hasMeasurements() {

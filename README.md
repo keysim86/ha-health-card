@@ -96,6 +96,7 @@ Wynikiem doby jest **ostatni odczyt licznika tego dnia**, a nie największy. Lic
 - Formularz zapisu wzrostu do `input_number`
 - Formularz zapisu 8 pomiarów ciała do `input_number` — jeden przycisk zapisuje wszystkie wypełnione pola
 - Pod każdym polem wyświetlana jest nazwa encji z YAML lub ostrzeżenie o braku konfiguracji
+- Zakładkę można ukryć per osoba przez `enable_data_card: false` — reszta karty (waga, pomiary, ciśnienie, aktywność, siatki) działa dalej
 
 ---
 
@@ -172,6 +173,11 @@ bp_exclude_timestamps:
   - "2026-03-16 22:59"                 # format YYYY-MM-DD HH:MM, strefa lokalna
   - "2026-03-17 07:05"
 
+# --- Wprowadzanie danych ---
+enable_data_card: true                 # false = ukrywa zakładkę „Wprowadź dane"
+                                       # (sama zakładka; dane nadal można zapisywać
+                                       #  w HA, np. z pulpitu z input_number)
+
 # --- Pomiary ciała ---
 measurements_enabled: true             # false = ukrywa zakładkę Pomiary
 measurements:
@@ -219,6 +225,8 @@ goals:
 ## Dla wielu użytkowników
 
 Jeden plik `health-card.js` obsługuje wszystkich — każda osoba konfiguruje własną kartę przez YAML z własnymi encjami, wagą startową i celami. Zmiana konfiguracji powoduje automatyczne przeładowanie wszystkich danych.
+
+Widoczność zakładek ustawia się osobno dla każdej osoby: `enable_data_card`, `bp_enabled`, `measurements_enabled`, `centile_enabled`, `body_comp_enabled`, `goals_enabled`. Domyślnie wszystkie są włączone poza siatkami centylowymi (`centile_enabled`), które trzeba włączyć wprost.
 
 ---
 

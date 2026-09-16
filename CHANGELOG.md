@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Dodano
+- **`enable_data_card`** — flaga w YAML ukrywająca zakładkę „Wprowadź dane" dla wybranej osoby. Domyślnie `true`, więc bez wpisu nic się nie zmienia. Ukrywa wyłącznie tę zakładkę; waga, pomiary, ciśnienie, aktywność i siatki działają dalej
+- Przy wyłączonej fladze karta nie tylko chowa przycisk, ale też **odsyła na zakładkę Waga**, gdyby na „Wprowadź dane" trafiło coś innego niż kliknięcie (zapamiętany stan, przełączenie z kodu)
+- Przyjmowany jest też zapis `Enable_data_card` — YAML rozróżnia wielkość liter, a literówka dawałaby ciche „nie działa"
+
 ## [1.9.4] - 2026-08-29
 
 ### Naprawiono
