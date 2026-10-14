@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Przestarzałe
+- **Koniec rozwoju i wsparcia (14.10.2026).** Karta nie będzie dostawać poprawek, nowych funkcji ani odpowiedzi na
+  zgłoszenia; 1.9.5 jest ostatnią wersją. Następca: zakładka Zdrowie w panelu [Hearth](https://github.com/keysim86/ha-hearth)
+
 ## [1.9.5] - 2026-09-16
 
 ### Dodano

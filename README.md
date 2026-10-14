@@ -11,6 +11,11 @@
 
 > Karta Lovelace do monitorowania zdrowia — waga, pomiary ciała, ciśnienie krwi, aktywność, siatki centylowe. Dane z Home Assistant, raporty PDF.
 
+> ⚠️ **Projekt nie jest już rozwijany ani wspierany (od 14.10.2026).** Wersja 1.9.5 jest ostatnia — karta nie będzie
+> dostawać poprawek, nowych funkcji ani odpowiedzi na zgłoszenia. Następcą jest zakładka **Zdrowie** w panelu
+> [Hearth](https://github.com/keysim86/ha-hearth): te same obliczenia, a osoby konfiguruje się w interfejsie
+> Home Assistant zamiast w YAML.
+
 ---
 
 ## Zakładki
